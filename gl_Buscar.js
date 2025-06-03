@@ -109,7 +109,35 @@
                     btn.style.color = '#ccc';
                 });
                 btn.addEventListener('click', () => {
-                    console.log(`Botón pulsado: ${name}, ID: ${inputId.value.trim()}`);
+                    const idValue = inputId.value.trim();
+                    console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
+
+                    if (name === 'Arena') {
+                        const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
+
+                        // Solo lo carga si no se ha cargado ya antes
+                        if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
+                            const script = document.createElement('script');
+                            script.src = scriptUrl;
+                            script.onload = () => {
+                                if (typeof window.buscarCombatePorID === 'function') {
+                                    window.buscarCombatePorID(idValue);
+                                } else {
+                                    alert('El script cargarDatosCombate.js no contiene la función esperada.');
+                                }
+                            };
+                            script.onerror = () => {
+                                alert('Error al cargar cargarDatosCombate.js');
+                            };
+                            document.body.appendChild(script);
+                        } else {
+                            if (typeof window.buscarCombatePorID === 'function') {
+                                window.buscarCombatePorID(idValue);
+                            } else {
+                                alert('La función buscarCombatePorID no está disponible.');
+                            }
+                        }
+                    }
                 });
                 buttonsContainer.appendChild(btn);
             });
