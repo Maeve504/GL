@@ -1,5 +1,4 @@
 (function() {
-  // Barra de progreso visual
   function crearBarraProgreso() {
     const existente = document.getElementById('barraProgresoCombate');
     if (existente) return existente;
@@ -26,7 +25,6 @@
     }
   }
 
-  // Función principal para cargar datos
   async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
     const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
     const horasRecopiladas = [];
@@ -50,18 +48,12 @@
         const filas = table.querySelectorAll('tr');
         if (filas.length <= 1) break;
 
-        let filasConDatos = 0;
         for (let i = 1; i < filas.length; i++) {
           const celdas = filas[i].querySelectorAll('td');
           if (celdas.length === 0) continue;
           const horaTexto = celdas[0].textContent.trim();
-          if (horaTexto) {
-            horasRecopiladas.push(horaTexto);
-            filasConDatos++;
-          }
+          if (horaTexto) horasRecopiladas.push(horaTexto);
         }
-
-        if (filasConDatos === 0) break;
 
         paginasProcesadas++;
         offset += 30;
@@ -69,26 +61,21 @@
         const btnSiguiente = Array.from(doc.querySelectorAll('a,button')).find(el => el.textContent.trim() === 'Siguiente »');
         if (!btnSiguiente) continuar = false;
 
-        if (callbackProgreso && typeof callbackProgreso === 'function') {
-          const maxPaginas = 50;
-          const progreso = Math.min(90, Math.floor((paginasProcesadas / maxPaginas) * 100));
-          callbackProgreso(progreso);
+        if (callbackProgreso) {
+          const progresoEstimado = Math.min(95, Math.floor((paginasProcesadas / 50) * 100));
+          callbackProgreso(progresoEstimado);
         }
 
       } catch (error) {
-        console.error('Error al cargar la página:', url, error);
+        console.error('Error al cargar:', url, error);
         break;
       }
     }
 
-    if (callbackProgreso && typeof callbackProgreso === 'function') {
-      callbackProgreso(100);
-    }
-
+    if (callbackProgreso) callbackProgreso(100);
     return horasRecopiladas;
   }
 
-  // Modal de resultados ajustado
   function mostrarModalResultados(datos) {
     const existente = document.getElementById('modalResultadosCombate');
     if (existente) existente.remove();
@@ -109,68 +96,62 @@
     const modal = document.createElement('div');
     modal.style.backgroundColor = '#fff';
     modal.style.borderRadius = '8px';
-    modal.style.padding = '15px';
-    modal.style.width = '500px';
-    modal.style.maxHeight = '60vh';
+    modal.style.padding = '12px';
+    modal.style.width = '550px';
+    modal.style.maxHeight = '70vh';
     modal.style.display = 'flex';
-    modal.style.flexDirection = 'row';
+    modal.style.gap = '10px';
     modal.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
     modal.style.fontFamily = 'Arial, sans-serif';
     modal.style.fontSize = '13px';
     modal.style.color = '#333';
 
-    const ladoIzquierdo = document.createElement('div');
-    ladoIzquierdo.style.flex = '1';
-    ladoIzquierdo.style.maxHeight = '55vh';
-    ladoIzquierdo.style.overflowY = 'auto';
-    ladoIzquierdo.style.marginRight = '10px';
-    ladoIzquierdo.style.whiteSpace = 'pre-wrap';
-    ladoIzquierdo.style.border = '1px solid #ccc';
-    ladoIzquierdo.style.padding = '10px';
-    ladoIzquierdo.style.backgroundColor = '#f9f9f9';
+    const resultados = document.createElement('div');
+    resultados.style.flex = '1';
+    resultados.style.maxHeight = '58vh';
+    resultados.style.overflowY = 'auto';
+    resultados.style.border = '1px solid #ccc';
+    resultados.style.padding = '8px';
+    resultados.style.backgroundColor = '#f9f9f9';
+    resultados.style.whiteSpace = 'pre-wrap';
 
-    const contenido = datos
-      .map(str => str.replace(/#/g, '').trim())
+    const limpio = datos
+      .map(str => str.replace(/#\d+\s*/, '').trim())
       .filter(str => str.length > 0)
       .join('\n');
 
-    const pre = document.createElement('pre');
-    pre.textContent = contenido;
-    ladoIzquierdo.appendChild(pre);
+    resultados.textContent = limpio;
 
-    const ladoDerecho = document.createElement('div');
-    ladoDerecho.style.width = '130px';
-    ladoDerecho.style.textAlign = 'left';
-    ladoDerecho.innerHTML = `<strong>INFORMACIÓN:</strong>`;
+    const lateral = document.createElement('div');
+    lateral.style.width = '130px';
+    lateral.style.display = 'flex';
+    lateral.style.flexDirection = 'column';
+    lateral.style.justifyContent = 'space-between';
+
+    const info = document.createElement('div');
+    info.innerHTML = `<strong>INFORMACIÓN:</strong>`;
 
     const cerrar = document.createElement('button');
     cerrar.textContent = 'Cerrar';
     cerrar.style.marginTop = '10px';
+    cerrar.style.padding = '4px';
     cerrar.style.cursor = 'pointer';
     cerrar.onclick = () => overlay.remove();
 
-    const contenedor = document.createElement('div');
-    contenedor.style.display = 'flex';
-    contenedor.style.flexDirection = 'column';
-    contenedor.appendChild(ladoDerecho);
-    contenedor.appendChild(cerrar);
+    lateral.appendChild(info);
+    lateral.appendChild(cerrar);
 
-    modal.appendChild(ladoIzquierdo);
-    modal.appendChild(contenedor);
+    modal.appendChild(resultados);
+    modal.appendChild(lateral);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
   }
 
-  // Ejecutar
   async function recopilarYMostrar(userId, tipoCombate) {
     actualizarBarraProgreso(0);
     const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, actualizarBarraProgreso);
     mostrarModalResultados(datos);
   }
 
-  // Exponer funciones
-  window.buscarCombatePorIDConProgreso = cargarDatosCombateConProgreso;
-  window.mostrarModalResultadosCombate = mostrarModalResultados;
   window.recopilarYMostrarCombates = recopilarYMostrar;
-
 })();
