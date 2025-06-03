@@ -127,6 +127,13 @@
                     btn.style.backgroundColor = 'transparent';
                     btn.style.color = '#b37f34';
                 });
+
+                // Aquí puedes añadir funcionalidad a los botones secundarios, por ejemplo:
+                btn.addEventListener('click', () => {
+                    alert(`Botón secundario pulsado: ${name}\nID buscada: ${inputId.value.trim()}`);
+                    // Aquí podrías hacer algo con el ID y el tipo de búsqueda (name)
+                });
+
                 buttonsContainer.appendChild(btn);
             });
 
@@ -153,13 +160,29 @@
                 acceptBtn.style.transform = 'scale(1)';
                 acceptBtn.style.boxShadow = '0 4px 12px rgba(179, 127, 52, 0.6)';
             });
+
             acceptBtn.addEventListener('click', () => {
-                if(inputId.value.trim() === '') {
+                const idValue = inputId.value.trim();
+                if(idValue === '') {
                     alert('Por favor, introduce una ID válida (solo números).');
                     return;
                 }
+                // Mostrar botones secundarios
                 buttonsContainer.style.display = 'flex';
+
+                // --- Aquí integras la función de búsqueda ---
+                // Por ejemplo, un alert con la ID, luego lo puedes cambiar por AJAX o lo que quieras:
+                alert(`Buscando usuario con ID: ${idValue}`);
+
+                // Ejemplo ficticio de búsqueda:
+                // buscarUsuarioPorID(idValue).then(resultado => {
+                //     console.log('Resultado:', resultado);
+                //     // Aquí puedes mostrar resultados dentro del modal si quieres
+                // }).catch(err => {
+                //     alert('Error al buscar usuario');
+                // });
             });
+
             modalContent.appendChild(acceptBtn);
 
             document.body.appendChild(modal);
