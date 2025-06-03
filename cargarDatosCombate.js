@@ -13,11 +13,6 @@
     let continuar = true;
     let paginasProcesadas = 0;
 
-    // Para calcular progreso debemos estimar un máximo de páginas.
-    // No hay info directa, así que vamos a asumir un máximo de 10 páginas.
-    // Si quieres, cambia este valor a otro mayor o ajustable.
-    const maxPaginasEstimadas = 10;
-
     while (continuar) {
       const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
       try {
@@ -28,16 +23,21 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
+        // Buscar tabla y filas
         const table = doc.querySelector('table');
         if (!table) {
           console.warn('No se encontró tabla en la página:', url);
           break;
         }
 
+        // Detectar texto "No hay informes de combate disponibles."
+        if (table.textContent.includes('No hay informes de combate disponibles.')) {
+          break; // Fin de datos
+        }
+
         const filas = table.querySelectorAll('tr');
         if (filas.length <= 1) {
-          // No hay filas con datos, fin de páginas
-          break;
+          break; // Sin datos
         }
 
         let filasConDatos = 0;
@@ -52,31 +52,29 @@
         }
 
         if (filasConDatos === 0) {
-          continuar = false;
-        } else {
-          offset += 30;
-          paginasProcesadas++;
-
-          // Llamar callback progreso si existe
-          if (callbackProgreso && typeof callbackProgreso === 'function') {
-            // Progreso calculado en porcentaje (máximo maxPaginasEstimadas páginas)
-            let porcentaje = Math.min(100, Math.floor((paginasProcesadas / maxPaginasEstimadas) * 100));
-            callbackProgreso(porcentaje);
-          }
+          break; // Sin datos en página
         }
 
-        // Si llegamos a max páginas estimadas forzamos fin para no infinite loop
-        if (paginasProcesadas >= maxPaginasEstimadas) {
-          continuar = false;
+        paginasProcesadas++;
+        offset += 30;
+
+        // Comprobar si existe botón "Siguiente »"
+        const btnSiguiente = Array.from(doc.querySelectorAll('a,button')).find(el => el.textContent.trim() === 'Siguiente »');
+        if (!btnSiguiente) {
+          continuar = false; // Última página
+        }
+
+        if (callbackProgreso && typeof callbackProgreso === 'function') {
+          // Progreso arbitrario, solo como ejemplo
+          callbackProgreso(Math.min(100, paginasProcesadas * 10));
         }
 
       } catch (error) {
         console.error('Error al cargar la página:', url, error);
-        continuar = false;
+        break;
       }
     }
 
-    // Finalizamos con 100% para asegurarnos
     if (callbackProgreso && typeof callbackProgreso === 'function') {
       callbackProgreso(100);
     }
@@ -84,7 +82,7 @@
     return horasRecopiladas;
   }
 
-  // Exportamos esta función para usar con progreso
+  // Exportar función global para uso externo
   window.buscarCombatePorIDConProgreso = cargarDatosCombateConProgreso;
 
 })();
