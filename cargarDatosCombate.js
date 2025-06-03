@@ -1,140 +1,157 @@
-// ==UserScript==
-// @name         Gladiatus Combate Recopilador Mejorado
-// @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  Recopila horas de combate y muestra promedio diario con tabla ajustada.
-// @match        https://s*-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser*
-// @grant        none
-// ==/UserScript==
-
 (function() {
-  'use strict';
+  function crearBarraProgreso() {
+    const existente = document.getElementById('barraProgresoCombate');
+    if (existente) return existente;
 
-  async function cargarDatosCombateConProgreso(userId, tipoCombate) {
-    const baseUrl = location.href.split('?')[0];
+    const barra = document.createElement('div');
+    barra.id = 'barraProgresoCombate';
+    barra.style.position = 'fixed';
+    barra.style.top = '0';
+    barra.style.left = '0';
+    barra.style.width = '0%';
+    barra.style.height = '6px';
+    barra.style.backgroundColor = '#4caf50';
+    barra.style.zIndex = '99999';
+    barra.style.transition = 'width 0.3s ease';
+    document.body.appendChild(barra);
+    return barra;
+  }
+
+  function actualizarBarraProgreso(porcentaje) {
+    const barra = crearBarraProgreso();
+    barra.style.width = `${porcentaje}%`;
+    if (porcentaje >= 100) {
+      setTimeout(() => barra.remove(), 1000);
+    }
+  }
+
+  async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
+    const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
     const horasRecopiladas = [];
     let offset = 0;
     let continuar = true;
+    let paginasProcesadas = 0;
 
     while (continuar) {
-      const url = `${baseUrl}?action=module&modName=CombatLog&mode=showUser&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
+      const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
       try {
         const response = await fetch(url);
-        const html = await response.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const tabla = doc.querySelector('table');
-        if (!tabla) break;
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
-        const filas = tabla.querySelectorAll('tr');
-        let datosNuevos = 0;
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const table = doc.querySelector('table');
+        if (!table || table.textContent.includes('No hay informes de combate disponibles.')) break;
+
+        const filas = table.querySelectorAll('tr');
+        if (filas.length <= 1) break;
 
         for (let i = 1; i < filas.length; i++) {
           const celdas = filas[i].querySelectorAll('td');
-          if (celdas.length && !celdas[0].textContent.includes('No hay informes')) {
-            const texto = celdas[0].textContent.trim();
-            if (texto) {
-              horasRecopiladas.push(texto);
-              datosNuevos++;
-            }
-          }
+          if (celdas.length === 0) continue;
+          const horaTexto = celdas[0].textContent.trim();
+          if (horaTexto) horasRecopiladas.push(horaTexto);
         }
 
-        if (datosNuevos === 0 || !html.includes('Siguiente »')) {
-          continuar = false;
-        } else {
-          offset += 30;
+        paginasProcesadas++;
+        offset += 30;
+
+        const btnSiguiente = Array.from(doc.querySelectorAll('a,button')).find(el => el.textContent.trim() === 'Siguiente »');
+        if (!btnSiguiente) continuar = false;
+
+        if (callbackProgreso) {
+          const progresoEstimado = Math.min(95, Math.floor((paginasProcesadas / 50) * 100));
+          callbackProgreso(progresoEstimado);
         }
-      } catch (e) {
-        console.error(e);
-        continuar = false;
+
+      } catch (error) {
+        console.error('Error al cargar:', url, error);
+        break;
       }
     }
 
+    if (callbackProgreso) callbackProgreso(100);
     return horasRecopiladas;
   }
 
-  function crearVentanaModal(horas) {
-    let modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.top = '10%';
-    modal.style.left = '25%';
-    modal.style.width = '50%';
-    modal.style.height = '60%';
-    modal.style.backgroundColor = '#f4f4f4';
-    modal.style.border = '2px solid #333';
-    modal.style.zIndex = 9999;
+  function mostrarModalResultados(datos) {
+    const existente = document.getElementById('modalResultadosCombate');
+    if (existente) existente.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modalResultadosCombate';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const modal = document.createElement('div');
+    modal.style.backgroundColor = '#fff';
+    modal.style.borderRadius = '8px';
+    modal.style.padding = '12px';
+    modal.style.width = '550px';
+    modal.style.maxHeight = '70vh';
     modal.style.display = 'flex';
-    modal.style.flexDirection = 'row';
-    modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    modal.style.gap = '10px';
+    modal.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
+    modal.style.fontFamily = 'Arial, sans-serif';
+    modal.style.fontSize = '13px';
+    modal.style.color = '#333';
 
-    let close = document.createElement('div');
-    close.textContent = '✖';
-    close.style.position = 'absolute';
-    close.style.top = '5px';
-    close.style.right = '10px';
-    close.style.cursor = 'pointer';
-    close.style.fontSize = '18px';
-    close.onclick = () => modal.remove();
+    const resultados = document.createElement('div');
+    resultados.style.flex = '1';
+    resultados.style.maxHeight = '58vh';
+    resultados.style.overflowY = 'auto';
+    resultados.style.border = '1px solid #ccc';
+    resultados.style.padding = '8px';
+    resultados.style.backgroundColor = '#f9f9f9';
+    resultados.style.whiteSpace = 'pre-wrap';
 
-    let contTabla = document.createElement('div');
-    contTabla.style.flex = '2';
-    contTabla.style.overflowY = 'auto';
-    contTabla.style.maxHeight = '100%';
-    contTabla.style.padding = '10px';
-    contTabla.innerHTML = `
-      <table style="width:100%; font-size: 12px; border-collapse: collapse;">
-        <thead><tr><th style="text-align:left; border-bottom: 1px solid #ccc;">Fecha y hora</th></tr></thead>
-        <tbody>${horas.map(h => `<tr><td style="padding:4px 0;">${h}</td></tr>`).join('')}</tbody>
-      </table>
-    `;
+    const limpio = datos
+      .map(str => str.replace(/#\d+\s*/, '').trim())
+      .filter(str => str.length > 0)
+      .join('\n');
 
-    let contInfo = document.createElement('div');
-    contInfo.style.flex = '1';
-    contInfo.style.padding = '15px 10px';
-    contInfo.style.borderLeft = '1px solid #ccc';
-    contInfo.style.display = 'flex';
-    contInfo.style.flexDirection = 'column';
-    contInfo.style.fontSize = '14px';
+    resultados.textContent = limpio;
 
-    const promedio = calcularPromedio(horas);
-    contInfo.innerHTML = `
-      <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">INFORMACIÓN:</div>
-      <div><b>Promedio diario:</b><br>${promedio}</div>
-    `;
+    const lateral = document.createElement('div');
+    lateral.style.width = '130px';
+    lateral.style.display = 'flex';
+    lateral.style.flexDirection = 'column';
+    lateral.style.justifyContent = 'space-between';
 
-    modal.appendChild(close);
-    modal.appendChild(contTabla);
-    modal.appendChild(contInfo);
-    document.body.appendChild(modal);
+    const info = document.createElement('div');
+    info.innerHTML = `<strong>INFORMACIÓN:</strong>`;
+
+    const cerrar = document.createElement('button');
+    cerrar.textContent = 'Cerrar';
+    cerrar.style.marginTop = '10px';
+    cerrar.style.padding = '4px';
+    cerrar.style.cursor = 'pointer';
+    cerrar.onclick = () => overlay.remove();
+
+    lateral.appendChild(info);
+    lateral.appendChild(cerrar);
+
+    modal.appendChild(resultados);
+    modal.appendChild(lateral);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
   }
 
-  function calcularPromedio(horas) {
-    if (horas.length < 2) return 'No disponible';
-    let fechas = horas.map(parsearFecha).sort((a, b) => a - b);
-    const tiempoTotalMs = fechas[fechas.length - 1] - fechas[0];
-    const dias = tiempoTotalMs / (1000 * 60 * 60 * 24);
-    const msPorDia = tiempoTotalMs / dias / horas.length;
-    return msADuracion(msPorDia);
+  async function recopilarYMostrar(userId, tipoCombate) {
+    actualizarBarraProgreso(0);
+    const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, actualizarBarraProgreso);
+    mostrarModalResultados(datos);
   }
 
-  function msADuracion(ms) {
-    const totalSegundos = Math.floor(ms / 1000);
-    const h = Math.floor(totalSegundos / 3600);
-    const m = Math.floor((totalSegundos % 3600) / 60);
-    const s = totalSegundos % 60;
-    return `${h}h ${m}m ${s}s`;
-  }
-
-  function parsearFecha(texto) {
-    const [fecha, hora] = texto.split(' ');
-    const [d, m, y] = fecha.split('.').map(Number);
-    const [hh, mm] = hora.split(':').map(Number);
-    return new Date(y, m - 1, d, hh, mm);
-  }
-
-  // USO RÁPIDO EN CONSOLA
-  window.buscarCombatePorIDConProgreso = async function(userId, tipoCombate) {
-    const horas = await cargarDatosCombateConProgreso(userId, tipoCombate);
-    crearVentanaModal(horas);
-  };
+  window.recopilarYMostrarCombates = recopilarYMostrar;
 })();
