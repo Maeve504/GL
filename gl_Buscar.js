@@ -113,7 +113,7 @@
                     console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
 
                     if (name === 'Arena') {
-                        const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
+                        const scriptUrl = 'https://maeve504.github.io/GL/cargarDatosCombate.js';
 
                         // Solo lo carga si no se ha cargado ya antes
                         if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
