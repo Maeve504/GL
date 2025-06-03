@@ -194,8 +194,8 @@
 
 })();
 
-function buscarUsuario() {
-    // Código para buscar usuario
-    alert("Función buscarUsuario ejecutada");
-}
+window.buscarUsuario = function() {
+    // código de búsqueda de usuario
+};
+
 
