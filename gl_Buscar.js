@@ -88,7 +88,7 @@
             });
             modalContent.appendChild(buttonsContainer);
 
-            // Crear contenedor para mensaje de carga y tabla (vacío al inicio)
+            // Contenedor para mensaje de carga
             const mensajeCarga = document.createElement('div');
             mensajeCarga.id = 'mensajeCarga';
             Object.assign(mensajeCarga.style, {
@@ -100,6 +100,7 @@
             });
             modalContent.appendChild(mensajeCarga);
 
+            // Tabla para mostrar resultados
             const tablaDatos = document.createElement('table');
             tablaDatos.id = 'tablaDatos';
             Object.assign(tablaDatos.style, {
@@ -148,6 +149,9 @@
                     console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
 
                     if (name === 'Arena') {
+                        buttonsContainer.style.pointerEvents = 'none'; // bloqueo clicks
+                        buttonsContainer.style.opacity = '0.6';
+
                         buttonsContainer.style.display = 'none';
                         mensajeCarga.style.display = 'block';
                         tablaDatos.style.display = 'none';
@@ -163,7 +167,6 @@
                                     mensajeCarga.textContent = `Carga finalizada. ${horas.length} registros encontrados.`;
                                     tablaDatos.style.display = 'table';
 
-                                    // Construir tabla
                                     tablaDatos.innerHTML = '';
                                     const thead = document.createElement('thead');
                                     thead.innerHTML = `<tr>
@@ -182,15 +185,23 @@
                                         tbody.appendChild(fila);
                                     });
                                     tablaDatos.appendChild(tbody);
+
+                                    buttonsContainer.style.pointerEvents = '';
+                                    buttonsContainer.style.opacity = '1';
+
                                 }).catch(err => {
                                     alert('Error al cargar datos de combate.');
                                     console.error(err);
                                     buttonsContainer.style.display = 'flex';
+                                    buttonsContainer.style.pointerEvents = '';
+                                    buttonsContainer.style.opacity = '1';
                                     mensajeCarga.style.display = 'none';
                                 });
                             } else {
                                 alert('Función buscarCombatePorIDConProgreso no encontrada.');
                                 buttonsContainer.style.display = 'flex';
+                                buttonsContainer.style.pointerEvents = '';
+                                buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
                             }
                         }
@@ -202,6 +213,8 @@
                             script.onerror = () => {
                                 alert('Error al cargar cargarDatosCombate.js');
                                 buttonsContainer.style.display = 'flex';
+                                buttonsContainer.style.pointerEvents = '';
+                                buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
                             };
                             document.body.appendChild(script);
@@ -209,7 +222,7 @@
                             iniciarCarga();
                         }
                     }
-                    // Aquí puedes añadir más condiciones para CT, Expedición, Mazmorra, All
+                    // Puedes añadir aquí el manejo para 'CT', 'Expedición', 'Mazmorra' y 'All' si quieres
                 });
                 buttonsContainer.appendChild(btn);
             });
@@ -244,7 +257,7 @@
                     acceptBtn.textContent = 'Cerrar';
                     acceptBtn.style.backgroundColor = '#cc3333';
 
-                    // Al abrir botones, ocultar mensaje y tabla si hay
+                    // Ocultar mensaje y tabla al abrir botones
                     mensajeCarga.style.display = 'none';
                     tablaDatos.style.display = 'none';
                 }
@@ -269,6 +282,8 @@
         const { inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
         inputId.value = '';
         buttonsContainer.style.display = 'none';
+        buttonsContainer.style.pointerEvents = '';
+        buttonsContainer.style.opacity = '1';
         mensajeCarga.style.display = 'none';
         tablaDatos.style.display = 'none';
         acceptBtn.textContent = 'Aceptar';
