@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         CombatLog Recopilador Mejorado
-// @namespace    Violentmonkey Scripts
-// @version      1.1
-// @description  Recopila combates con progreso e información
+// @name         CombatLog Recopilador + Modal con Cancelación
+// @namespace    Gladiatus Tools
+// @version      1.2
+// @description  Recopila todas las horas de combate y las muestra en un modal con progreso y botón de cerrar
 // @match        https://s*-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser*
 // @grant        none
 // ==/UserScript==
@@ -10,140 +10,150 @@
 (function () {
   'use strict';
 
-  async function buscarCombatePorIDConProgreso(userId, tipoCombate, callbackProgreso) {
-    const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
-    const horasRecopiladas = [];
+  /******************** 1. LÓGICA DE CARGA ************************/
+
+  let cancelarPeticion = false;           // ← bandera global para abortar
+
+  async function buscarCombatePorIDConProgreso(userId, tipoCombate, onProgress) {
+    const base = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
+    const horas = [];
     let offset = 0;
-    let continuar = true;
-    let paginasProcesadas = 0;
+    let pagina = 0;
 
-    while (continuar) {
-      const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+    cancelarPeticion = false;             // reiniciamos bandera
 
-        if (html.includes('No hay informes de combate disponibles.')) break;
+    while (true) {
+      if (cancelarPeticion) throw new Error('Proceso cancelado por el usuario');
 
-        const table = doc.querySelector('table');
-        if (!table) break;
+      const url = `${base}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const html = await resp.text();
 
-        const filas = table.querySelectorAll('tr');
-        if (filas.length <= 1) break;
+      // Fin si no hay más combates
+      if (html.includes('No hay informes de combate disponibles.')) break;
 
-        for (let i = 1; i < filas.length; i++) {
-          const celdas = filas[i].querySelectorAll('td');
-          if (celdas.length === 0) continue;
-          const horaTexto = celdas[0].textContent.trim();
-          if (horaTexto) horasRecopiladas.push(horaTexto);
-        }
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const filas = Array.from(doc.querySelectorAll('table tr')).slice(1); // omitimos cabecera
+      if (!filas.length) break;
 
-        paginasProcesadas++;
-        offset += 30;
+      filas.forEach(tr => {
+        const hora = tr.querySelector('td')?.textContent.trim();
+        if (hora) horas.push(hora);
+      });
 
-        const siguienteExiste = html.includes('Siguiente &raquo;');
-        if (!siguienteExiste) continuar = false;
+      pagina++;
+      if (onProgress) onProgress(`Página ${pagina}…`);
 
-        if (callbackProgreso) callbackProgreso(`Recopilando página ${paginasProcesadas}...`);
-      } catch (error) {
-        console.error('Error al cargar:', url, error);
-        continuar = false;
-      }
+      // ¿existe «Siguiente»?
+      if (!html.includes('Siguiente &raquo;')) break;
+
+      offset += 30;
     }
 
-    if (callbackProgreso) callbackProgreso('Completado.');
-    return horasRecopiladas;
+    if (onProgress) onProgress('Completado.');
+    return horas;
   }
 
-  function crearInterfaz() {
-    const boton = document.createElement('button');
-    boton.textContent = 'Recopilar Combates';
-    boton.style.position = 'fixed';
-    boton.style.top = '100px';
-    boton.style.right = '20px';
-    boton.style.zIndex = 1000;
-    boton.style.padding = '8px 12px';
-    boton.style.backgroundColor = '#c61ddf';
-    boton.style.color = '#fff';
-    boton.style.border = 'none';
-    boton.style.borderRadius = '6px';
-    boton.style.cursor = 'pointer';
-    document.body.appendChild(boton);
+  /******************** 2. INTERFAZ – BOTÓN LATERAL ************************/
 
-    boton.addEventListener('click', async () => {
-      const userId = new URLSearchParams(window.location.search).get('user_id') || '';
-      const tipoCombate = new URLSearchParams(window.location.search).get('cType') || 0;
+  const boton = document.createElement('button');
+  boton.textContent = 'Recopilar Combates';
+  Object.assign(boton.style, {
+    position: 'fixed', top: '90px', right: '20px',
+    padding: '8px 14px', zIndex: 9999,
+    background: '#c61ddf', color: '#fff',
+    border: 'none', borderRadius: '6px', cursor: 'pointer'
+  });
+  document.body.appendChild(boton);
 
-      mostrarModal();
+  boton.onclick = () => crearModal();
 
-      const resultados = await buscarCombatePorIDConProgreso(userId, tipoCombate, (progreso) => {
-        document.getElementById('gl-estado').textContent = progreso;
-      });
+  /******************** 3. MODAL ************************/
 
-      const tabla = document.getElementById('gl-tabla-resultados');
-      resultados.forEach(hora => {
-        const fila = document.createElement('tr');
-        const celda = document.createElement('td');
-        celda.textContent = hora;
-        celda.style.padding = '4px 8px';
-        fila.appendChild(celda);
-        tabla.appendChild(fila);
-      });
-    });
-  }
-
-  function mostrarModal() {
+  function crearModal() {
+    // --- estructura principal
     const modal = document.createElement('div');
-    modal.id = 'gl-modal';
-    modal.style.position = 'fixed';
-    modal.style.top = '15%';
-    modal.style.left = '25%';
-    modal.style.width = '50%';
-    modal.style.height = '400px';
-    modal.style.backgroundColor = '#fff';
-    modal.style.border = '2px solid #333';
-    modal.style.borderRadius = '8px';
-    modal.style.zIndex = 10000;
-    modal.style.display = 'flex';
-    modal.style.flexDirection = 'row';
-    modal.style.padding = '10px';
-    modal.style.boxShadow = '0 0 15px rgba(0,0,0,0.3)';
+    Object.assign(modal.style, {
+      position: 'fixed', top: '15%', left: '27%', width: '46%', height: '360px',
+      background: '#1f1f1f', color: '#eee', borderRadius: '10px',
+      boxShadow: '0 0 15px rgba(0,0,0,.6)', display: 'flex',
+      zIndex: 10000, overflow: 'hidden'
+    });
 
-    const contenido = document.createElement('div');
-    contenido.style.flex = '3';
-    contenido.style.maxHeight = '100%';
-    contenido.style.overflowY = 'auto';
-    contenido.style.borderRight = '1px solid #ccc';
-    contenido.style.paddingRight = '10px';
+    // --- botón X (cierra y cancela)
+    const btnX = document.createElement('button');
+    btnX.textContent = '×';
+    Object.assign(btnX.style, {
+      position: 'absolute', top: '6px', right: '10px',
+      fontSize: '26px', background: 'transparent',
+      border: 'none', color: '#ccc', cursor: 'pointer'
+    });
+    btnX.onclick = () => {
+      cancelarPeticion = true;
+      modal.remove();
+    };
+    modal.appendChild(btnX);
 
+    // --- contenedor tabla (scroll interno)
+    const contTabla = document.createElement('div');
+    Object.assign(contTabla.style, {
+      flex: '3', overflowY: 'auto', padding: '10px'
+    });
     const tabla = document.createElement('table');
-    tabla.id = 'gl-tabla-resultados';
     tabla.style.width = '100%';
     tabla.style.borderCollapse = 'collapse';
-    tabla.style.fontSize = '14px';
-    contenido.appendChild(tabla);
+    contTabla.appendChild(tabla);
+    modal.appendChild(contTabla);
 
+    // --- panel información
     const info = document.createElement('div');
-    info.style.flex = '2';
-    info.style.paddingLeft = '10px';
-    info.innerHTML = `<strong>INFORMACIÓN:</strong><br><br>ahsufhansf`;
-
-    const pie = document.createElement('div');
-    pie.style.position = 'absolute';
-    pie.style.bottom = '10px';
-    pie.style.left = '0';
-    pie.style.width = '100%';
-    pie.innerHTML = `<div id="gl-estado" style="text-align:center; font-weight:bold;">Iniciando...</div>`;
-
-    modal.appendChild(contenido);
+    Object.assign(info.style, {
+      flex: '2', borderLeft: '1px solid #444', padding: '10px',
+      display: 'flex', flexDirection: 'column', fontSize: '13px'
+    });
+    info.innerHTML = `<strong>INFORMACIÓN:</strong><br><br><span id="gl-estado">Preparado…</span>`;
     modal.appendChild(info);
-    modal.appendChild(pie);
+
     document.body.appendChild(modal);
+
+    // --- lanzar descarga
+    iniciarDescarga(tabla, document.getElementById('gl-estado'));
   }
 
+  /******************** 4. DESCARGA Y RELLENO DE TABLA ************************/
+
+  async function iniciarDescarga(tabla, estadoEl) {
+    try {
+      const params = new URLSearchParams(location.search);
+      const userId = params.get('user_id') || prompt('ID de usuario');
+      const tipo   = params.get('cType')   || 2; // default Arena
+      if (!userId) { estadoEl.textContent = 'Sin ID'; return; }
+
+      estadoEl.textContent = 'Iniciando…';
+
+      const horas = await buscarCombatePorIDConProgreso(
+        userId, tipo,
+        (msg) => estadoEl.textContent = msg
+      );
+
+      // Vaciar tabla
+      tabla.innerHTML = '';
+      // Rellenar solo la columna de hora
+      horas.forEach(h => {
+        const tr = tabla.insertRow();
+        const td = tr.insertCell();
+        td.textContent = h;
+        td.style.borderBottom = '1px solid #333';
+        td.style.padding = '4px 6px';
+      });
+
+      estadoEl.innerHTML = `<span style="color:#6fc46f">Listo: ${horas.length} registros</span>`;
+    } catch (e) {
+      estadoEl.innerHTML = `<span style="color:#e66">Error: ${e.message}</span>`;
+    }
+  }
+
+  // Exponemos la función global por si se necesitara externamente
   window.buscarCombatePorIDConProgreso = buscarCombatePorIDConProgreso;
-  crearInterfaz();
 })();
