@@ -1,3 +1,4 @@
+// // @require      https://raw.githubusercontent.com/Maeve504/GL/main/gl_Buscar.js
 (function () {
     'use strict';
 
