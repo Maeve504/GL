@@ -26,7 +26,6 @@
             modalContent.style.boxShadow = '0 10px 25px rgba(0,0,0,0.4)';
             modal.appendChild(modalContent);
 
-            // Cerrar
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '&times;';
             Object.assign(closeBtn.style, {
@@ -44,7 +43,6 @@
             });
             modalContent.appendChild(closeBtn);
 
-            // Título
             const titulo = document.createElement('h2');
             titulo.textContent = 'Buscar por ID';
             Object.assign(titulo.style, {
@@ -56,7 +54,6 @@
             });
             modalContent.appendChild(titulo);
 
-            // Input
             const inputId = document.createElement('input');
             inputId.type = 'text';
             inputId.placeholder = 'Introduce ID numérica';
@@ -76,7 +73,6 @@
             });
             modalContent.appendChild(inputId);
 
-            // Contenedor de botones secundarios
             const buttonsContainer = document.createElement('div');
             buttonsContainer.style.display = 'none';
             buttonsContainer.style.flexDirection = 'column';
@@ -106,16 +102,12 @@
                     btn.style.backgroundColor = '#333';
                     btn.style.color = '#ccc';
                 });
-
                 btn.addEventListener('click', () => {
-                    // Aquí ejecutas la acción deseada
                     console.log(`Botón pulsado: ${name}, ID: ${inputId.value.trim()}`);
                 });
-
                 buttonsContainer.appendChild(btn);
             });
 
-            // Botón aceptar
             const acceptBtn = document.createElement('button');
             acceptBtn.textContent = 'Aceptar';
             Object.assign(acceptBtn.style, {
@@ -132,15 +124,29 @@
                 transition: 'background-color 0.3s ease'
             });
             acceptBtn.addEventListener('mouseenter', () => {
-                acceptBtn.style.backgroundColor = '#005fa3';
+                if (acceptBtn.textContent === 'Cerrar') {
+                    acceptBtn.style.backgroundColor = '#992222';
+                } else {
+                    acceptBtn.style.backgroundColor = '#005fa3';
+                }
             });
             acceptBtn.addEventListener('mouseleave', () => {
-                acceptBtn.style.backgroundColor = '#007acc';
+                if (acceptBtn.textContent === 'Cerrar') {
+                    acceptBtn.style.backgroundColor = '#cc3333';
+                } else {
+                    acceptBtn.style.backgroundColor = '#007acc';
+                }
             });
             acceptBtn.addEventListener('click', () => {
-                const idValue = inputId.value.trim();
-                if (idValue !== '') {
-                    buttonsContainer.style.display = 'flex';
+                if (acceptBtn.textContent === 'Cerrar') {
+                    modal.style.display = 'none';
+                } else {
+                    const idValue = inputId.value.trim();
+                    if (idValue !== '') {
+                        buttonsContainer.style.display = 'flex';
+                        acceptBtn.textContent = 'Cerrar';
+                        acceptBtn.style.backgroundColor = '#cc3333';
+                    }
                 }
             });
             modalContent.appendChild(acceptBtn);
@@ -150,14 +156,18 @@
             window._modalBuscarID = {
                 modal,
                 inputId,
-                buttonsContainer
+                buttonsContainer,
+                acceptBtn
             };
         } else {
             modal.style.display = 'flex';
         }
 
-        window._modalBuscarID.inputId.value = '';
-        window._modalBuscarID.buttonsContainer.style.display = 'none';
-        window._modalBuscarID.inputId.focus();
+        const { inputId, buttonsContainer, acceptBtn } = window._modalBuscarID;
+        inputId.value = '';
+        buttonsContainer.style.display = 'none';
+        acceptBtn.textContent = 'Aceptar';
+        acceptBtn.style.backgroundColor = '#007acc';
+        inputId.focus();
     };
 })();
