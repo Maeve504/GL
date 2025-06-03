@@ -1,159 +1,151 @@
 // ==UserScript==
-// @name         CombatLog Recopilador + Modal con Cancelación
-// @namespace    Gladiatus Tools
-// @version      1.2
-// @description  Recopila todas las horas de combate y las muestra en un modal con progreso y botón de cerrar
+// @name         Gladiatus Combate Recopilador
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Recopila horas de combate y muestra promedio diario en Gladiatus.
 // @match        https://s*-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser*
 // @grant        none
 // ==/UserScript==
 
-(function () {
+(function() {
   'use strict';
 
-  /******************** 1. LÓGICA DE CARGA ************************/
-
-  let cancelarPeticion = false;           // ← bandera global para abortar
-
-  async function buscarCombatePorIDConProgreso(userId, tipoCombate, onProgress) {
-    const base = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
-    const horas = [];
+  // Cargar datos de combate con detección de última página
+  async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
+    const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
+    const horasRecopiladas = [];
     let offset = 0;
-    let pagina = 0;
+    let continuar = true;
+    let paginasProcesadas = 0;
 
-    cancelarPeticion = false;             // reiniciamos bandera
+    while (continuar) {
+      const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
+      try {
+        const response = await fetch(url);
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const table = doc.querySelector('table');
+        if (!table) break;
 
-    while (true) {
-      if (cancelarPeticion) throw new Error('Proceso cancelado por el usuario');
+        const filas = table.querySelectorAll('tr');
+        if (filas.length <= 1) break;
 
-      const url = `${base}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const html = await resp.text();
+        let filasConDatos = 0;
+        for (let i = 1; i < filas.length; i++) {
+          const celda = filas[i].querySelector('td');
+          if (celda && celda.textContent.includes('No hay informes')) {
+            continuar = false;
+            break;
+          }
+          if (celda && celda.textContent.trim()) {
+            horasRecopiladas.push(celda.textContent.trim());
+            filasConDatos++;
+          }
+        }
 
-      // Fin si no hay más combates
-      if (html.includes('No hay informes de combate disponibles.')) break;
+        if (filasConDatos === 0) break;
 
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const filas = Array.from(doc.querySelectorAll('table tr')).slice(1); // omitimos cabecera
-      if (!filas.length) break;
+        offset += 30;
+        paginasProcesadas++;
+        if (callbackProgreso) callbackProgreso(null); // progreso real no estimado
 
-      filas.forEach(tr => {
-        const hora = tr.querySelector('td')?.textContent.trim();
-        if (hora) horas.push(hora);
-      });
+        const siguiente = doc.querySelector('a:contains("Siguiente »")');
+        if (!siguiente && !html.includes('Siguiente »')) {
+          continuar = false;
+        }
 
-      pagina++;
-      if (onProgress) onProgress(`Página ${pagina}…`);
-
-      // ¿existe «Siguiente»?
-      if (!html.includes('Siguiente &raquo;')) break;
-
-      offset += 30;
+      } catch (e) {
+        console.error(e);
+        continuar = false;
+      }
     }
 
-    if (onProgress) onProgress('Completado.');
-    return horas;
+    if (callbackProgreso) callbackProgreso(100);
+    return horasRecopiladas;
   }
 
-  /******************** 2. INTERFAZ – BOTÓN LATERAL ************************/
+  function crearVentanaModal(horas) {
+    let modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '10%';
+    modal.style.left = '20%';
+    modal.style.width = '60%';
+    modal.style.height = '60%';
+    modal.style.backgroundColor = '#f4f4f4';
+    modal.style.border = '2px solid #333';
+    modal.style.zIndex = 9999;
+    modal.style.display = 'flex';
+    modal.style.flexDirection = 'row';
 
-  const boton = document.createElement('button');
-  boton.textContent = 'Recopilar Combates';
-  Object.assign(boton.style, {
-    position: 'fixed', top: '90px', right: '20px',
-    padding: '8px 14px', zIndex: 9999,
-    background: '#c61ddf', color: '#fff',
-    border: 'none', borderRadius: '6px', cursor: 'pointer'
-  });
-  document.body.appendChild(boton);
+    let close = document.createElement('div');
+    close.textContent = '✖';
+    close.style.position = 'absolute';
+    close.style.top = '5px';
+    close.style.right = '10px';
+    close.style.cursor = 'pointer';
+    close.style.fontSize = '18px';
+    close.onclick = () => modal.remove();
 
-  boton.onclick = () => crearModal();
+    let contTabla = document.createElement('div');
+    contTabla.style.flex = '2';
+    contTabla.style.overflow = 'auto';
+    contTabla.style.padding = '10px';
+    contTabla.innerHTML = `
+      <table style="width:100%; font-size: 12px;">
+        <thead><tr><th>Fecha y hora</th></tr></thead>
+        <tbody>${horas.map(h => `<tr><td>${h}</td></tr>`).join('')}</tbody>
+      </table>
+    `;
 
-  /******************** 3. MODAL ************************/
+    let contInfo = document.createElement('div');
+    contInfo.style.flex = '1';
+    contInfo.style.padding = '10px';
+    contInfo.style.borderLeft = '1px solid #ccc';
+    contInfo.style.fontWeight = 'bold';
+    contInfo.innerHTML = '<div>INFORMACIÓN:</div>';
 
-  function crearModal() {
-    // --- estructura principal
-    const modal = document.createElement('div');
-    Object.assign(modal.style, {
-      position: 'fixed', top: '15%', left: '27%', width: '46%', height: '360px',
-      background: '#1f1f1f', color: '#eee', borderRadius: '10px',
-      boxShadow: '0 0 15px rgba(0,0,0,.6)', display: 'flex',
-      zIndex: 10000, overflow: 'hidden'
-    });
+    const promedio = calcularPromedio(horas);
+    contInfo.innerHTML += `<div style="margin-top:10px; font-weight:normal;">
+      Promedio diario:<br><b>${promedio}</b>
+    </div>`;
 
-    // --- botón X (cierra y cancela)
-    const btnX = document.createElement('button');
-    btnX.textContent = '×';
-    Object.assign(btnX.style, {
-      position: 'absolute', top: '6px', right: '10px',
-      fontSize: '26px', background: 'transparent',
-      border: 'none', color: '#ccc', cursor: 'pointer'
-    });
-    btnX.onclick = () => {
-      cancelarPeticion = true;
-      modal.remove();
-    };
-    modal.appendChild(btnX);
-
-    // --- contenedor tabla (scroll interno)
-    const contTabla = document.createElement('div');
-    Object.assign(contTabla.style, {
-      flex: '3', overflowY: 'auto', padding: '10px'
-    });
-    const tabla = document.createElement('table');
-    tabla.style.width = '100%';
-    tabla.style.borderCollapse = 'collapse';
-    contTabla.appendChild(tabla);
+    modal.appendChild(close);
     modal.appendChild(contTabla);
-
-    // --- panel información
-    const info = document.createElement('div');
-    Object.assign(info.style, {
-      flex: '2', borderLeft: '1px solid #444', padding: '10px',
-      display: 'flex', flexDirection: 'column', fontSize: '13px'
-    });
-    info.innerHTML = `<strong>INFORMACIÓN:</strong><br><br><span id="gl-estado">Preparado…</span>`;
-    modal.appendChild(info);
-
+    modal.appendChild(contInfo);
     document.body.appendChild(modal);
-
-    // --- lanzar descarga
-    iniciarDescarga(tabla, document.getElementById('gl-estado'));
   }
 
-  /******************** 4. DESCARGA Y RELLENO DE TABLA ************************/
-
-  async function iniciarDescarga(tabla, estadoEl) {
-    try {
-      const params = new URLSearchParams(location.search);
-      const userId = params.get('user_id') || prompt('ID de usuario');
-      const tipo   = params.get('cType')   || 2; // default Arena
-      if (!userId) { estadoEl.textContent = 'Sin ID'; return; }
-
-      estadoEl.textContent = 'Iniciando…';
-
-      const horas = await buscarCombatePorIDConProgreso(
-        userId, tipo,
-        (msg) => estadoEl.textContent = msg
-      );
-
-      // Vaciar tabla
-      tabla.innerHTML = '';
-      // Rellenar solo la columna de hora
-      horas.forEach(h => {
-        const tr = tabla.insertRow();
-        const td = tr.insertCell();
-        td.textContent = h;
-        td.style.borderBottom = '1px solid #333';
-        td.style.padding = '4px 6px';
-      });
-
-      estadoEl.innerHTML = `<span style="color:#6fc46f">Listo: ${horas.length} registros</span>`;
-    } catch (e) {
-      estadoEl.innerHTML = `<span style="color:#e66">Error: ${e.message}</span>`;
-    }
+  function calcularPromedio(horas) {
+    if (horas.length < 2) return 'No disponible';
+    let fechas = horas.map(h => parsearFecha(h)).sort((a, b) => a - b);
+    const tiempoTotalMs = fechas[fechas.length - 1] - fechas[0];
+    const dias = tiempoTotalMs / (1000 * 60 * 60 * 24);
+    const promedioDiario = horas.length / dias;
+    const msPorDia = tiempoTotalMs / dias;
+    const tiempoPorDia = msADuracion(msPorDia / horas.length);
+    return tiempoPorDia;
   }
 
-  // Exponemos la función global por si se necesitara externamente
-  window.buscarCombatePorIDConProgreso = buscarCombatePorIDConProgreso;
+  function msADuracion(ms) {
+    const totalSegundos = Math.floor(ms / 1000);
+    const h = Math.floor(totalSegundos / 3600);
+    const m = Math.floor((totalSegundos % 3600) / 60);
+    const s = totalSegundos % 60;
+    return `${h}h ${m}m ${s}s`;
+  }
+
+  function parsearFecha(texto) {
+    // formato esperado: "03.06.2024 20:15"
+    const [fecha, hora] = texto.split(' ');
+    const [d, m, y] = fecha.split('.').map(Number);
+    const [hh, mm] = hora.split(':').map(Number);
+    return new Date(y, m - 1, d, hh, mm);
+  }
+
+  // USO RÁPIDO
+  window.buscarCombatePorIDConProgreso = async function(userId, tipoCombate) {
+    const horas = await cargarDatosCombateConProgreso(userId, tipoCombate);
+    crearVentanaModal(horas);
+  };
+
 })();
