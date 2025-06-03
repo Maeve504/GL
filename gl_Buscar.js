@@ -110,34 +110,54 @@
                 });
                 btn.addEventListener('click', () => {
                     const idValue = inputId.value.trim();
+                    if (!idValue) {
+                        alert('Introduce un ID válido');
+                        return;
+                    }
+
                     console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
 
                     if (name === 'Arena') {
-                        const scriptUrl = 'https://maeve504.github.io/GL/cargarDatosCombate.js';
+                        const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
 
-                        // Solo lo carga si no se ha cargado ya antes
                         if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
                             const script = document.createElement('script');
                             script.src = scriptUrl;
+
                             script.onload = () => {
                                 if (typeof window.buscarCombatePorID === 'function') {
-                                    window.buscarCombatePorID(idValue);
+                                    window.buscarCombatePorID(idValue).then(horas => {
+                                        alert(`Se cargaron ${horas.length} registros de horas.`);
+                                        console.log(horas);
+                                    }).catch(err => {
+                                        alert('Error al cargar datos de combate.');
+                                        console.error(err);
+                                    });
                                 } else {
-                                    alert('El script cargarDatosCombate.js no contiene la función esperada.');
+                                    alert('Función buscarCombatePorID no encontrada.');
                                 }
                             };
+
                             script.onerror = () => {
                                 alert('Error al cargar cargarDatosCombate.js');
                             };
+
                             document.body.appendChild(script);
                         } else {
                             if (typeof window.buscarCombatePorID === 'function') {
-                                window.buscarCombatePorID(idValue);
+                                window.buscarCombatePorID(idValue).then(horas => {
+                                    alert(`Se cargaron ${horas.length} registros de horas.`);
+                                    console.log(horas);
+                                }).catch(err => {
+                                    alert('Error al cargar datos de combate.');
+                                    console.error(err);
+                                });
                             } else {
-                                alert('La función buscarCombatePorID no está disponible.');
+                                alert('Función buscarCombatePorID no encontrada.');
                             }
                         }
                     }
+                    // Aquí podrías añadir else if para CT, Expedición, etc.
                 });
                 buttonsContainer.appendChild(btn);
             });
