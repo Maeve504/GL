@@ -193,3 +193,9 @@
     document.body.appendChild(modal);
 
 })();
+
+function buscarUsuario() {
+    // Código para buscar usuario
+    alert("Función buscarUsuario ejecutada");
+}
+
