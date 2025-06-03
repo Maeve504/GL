@@ -88,6 +88,7 @@
             });
             modalContent.appendChild(buttonsContainer);
 
+            // Contenedor para mensaje de carga
             const mensajeCarga = document.createElement('div');
             mensajeCarga.id = 'mensajeCarga';
             Object.assign(mensajeCarga.style, {
@@ -99,6 +100,7 @@
             });
             modalContent.appendChild(mensajeCarga);
 
+            // Tabla para mostrar resultados
             const tablaDatos = document.createElement('table');
             tablaDatos.id = 'tablaDatos';
             Object.assign(tablaDatos.style, {
@@ -147,18 +149,59 @@
                     console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
 
                     if (name === 'Arena') {
+                        buttonsContainer.style.pointerEvents = 'none'; // bloqueo clicks
+                        buttonsContainer.style.opacity = '0.6';
+
                         buttonsContainer.style.display = 'none';
                         mensajeCarga.style.display = 'block';
-                        mensajeCarga.textContent = 'Cargando...';
+                        tablaDatos.style.display = 'none';
+                        mensajeCarga.textContent = 'Cargando... 0%';
 
                         const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
 
                         function iniciarCarga() {
                             if (typeof window.recopilarYMostrarCombates === 'function') {
-                                window.recopilarYMostrarCombates(idValue, 2);
+                                // La función recopilarYMostrarCombates debe devolver Promise con datos
+                                window.recopilarYMostrarCombates(idValue, 2)
+                                    .then(datos => {
+                                        mensajeCarga.textContent = `Carga finalizada. ${datos.length} registros encontrados.`;
+                                        tablaDatos.style.display = 'table';
+
+                                        tablaDatos.innerHTML = '';
+                                        const thead = document.createElement('thead');
+                                        thead.innerHTML = `<tr>
+                                            <th style="border: 1px solid #444; padding: 6px; width: 10%;">#</th>
+                                            <th style="border: 1px solid #444; padding: 6px;">Hora</th>
+                                        </tr>`;
+                                        tablaDatos.appendChild(thead);
+
+                                        const tbody = document.createElement('tbody');
+                                        datos.forEach((hora, i) => {
+                                            const fila = document.createElement('tr');
+                                            fila.innerHTML = `
+                                                <td style="border: 1px solid #444; padding: 6px; text-align: center;">${i + 1}</td>
+                                                <td style="border: 1px solid #444; padding: 6px; word-break: break-word;">${hora}</td>
+                                            `;
+                                            tbody.appendChild(fila);
+                                        });
+                                        tablaDatos.appendChild(tbody);
+
+                                        buttonsContainer.style.pointerEvents = '';
+                                        buttonsContainer.style.opacity = '1';
+
+                                    }).catch(err => {
+                                        alert('Error al cargar datos de combate.');
+                                        console.error(err);
+                                        buttonsContainer.style.display = 'flex';
+                                        buttonsContainer.style.pointerEvents = '';
+                                        buttonsContainer.style.opacity = '1';
+                                        mensajeCarga.style.display = 'none';
+                                    });
                             } else {
                                 alert('Función recopilarYMostrarCombates no encontrada.');
                                 buttonsContainer.style.display = 'flex';
+                                buttonsContainer.style.pointerEvents = '';
+                                buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
                             }
                         }
@@ -170,6 +213,8 @@
                             script.onerror = () => {
                                 alert('Error al cargar cargarDatosCombate.js');
                                 buttonsContainer.style.display = 'flex';
+                                buttonsContainer.style.pointerEvents = '';
+                                buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
                             };
                             document.body.appendChild(script);
@@ -177,6 +222,7 @@
                             iniciarCarga();
                         }
                     }
+                    // Aquí puedes añadir manejo para otros botones si quieres
                 });
                 buttonsContainer.appendChild(btn);
             });
@@ -210,35 +256,18 @@
                     buttonsContainer.style.display = 'flex';
                     acceptBtn.textContent = 'Cerrar';
                     acceptBtn.style.backgroundColor = '#cc3333';
-                    mensajeCarga.style.display = 'none';
-                    tablaDatos.style.display = 'none';
+
+                    // Si quieres que al pulsar aceptar se haga algo más, añádelo aquí.
+                } else {
+                    alert('Introduce un ID válido');
                 }
             });
             modalContent.appendChild(acceptBtn);
 
             modal.appendChild(modalContent);
             document.body.appendChild(modal);
-
-            window._modalBuscarID = {
-                modal,
-                inputId,
-                buttonsContainer,
-                acceptBtn,
-                mensajeCarga,
-                tablaDatos
-            };
-        } else {
-            modal.style.display = 'flex';
         }
 
-        const { inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
-        inputId.value = '';
-        buttonsContainer.style.display = 'none';
-        buttonsContainer.style.pointerEvents = '';
-        buttonsContainer.style.opacity = '1';
-        mensajeCarga.style.display = 'none';
-        tablaDatos.style.display = 'none';
-        acceptBtn.textContent = 'Aceptar';
-        acceptBtn.style.backgroundColor = '#007acc';
+        modal.style.display = 'flex';
     };
 })();
