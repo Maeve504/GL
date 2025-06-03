@@ -6,35 +6,39 @@
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'modalBuscarID';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100vw';
-            modal.style.height = '100vh';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            modal.style.zIndex = '100000';
+            Object.assign(modal.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: '100000'
+            });
 
             const modalContent = document.createElement('div');
-            modalContent.style.backgroundColor = '#1f1f1f';
-            modalContent.style.padding = '30px 40px';
-            modalContent.style.borderRadius = '2px';
-            modalContent.style.minWidth = '360px';
-            modalContent.style.color = '#e0e0e0';
-            modalContent.style.boxShadow = '0 10px 25px rgba(0,0,0,0.4)';
-            modal.appendChild(modalContent);
+            Object.assign(modalContent.style, {
+                backgroundColor: '#1f1f1f',
+                padding: '30px 40px',
+                borderRadius: '12px',
+                minWidth: '360px',
+                color: '#e0e0e0',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                position: 'relative'
+            });
 
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '&times;';
             Object.assign(closeBtn.style, {
                 position: 'absolute',
-                top: '15px',
-                right: '20px',
-                fontSize: '26px',
+                top: '12px',
+                right: '16px',
+                fontSize: '28px',
                 background: 'transparent',
-                color: '#888',
+                color: '#aaa',
                 border: 'none',
                 cursor: 'pointer'
             });
@@ -61,7 +65,7 @@
                 width: '100%',
                 padding: '12px 15px',
                 fontSize: '16px',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 border: '1px solid #444',
                 backgroundColor: '#2a2a2a',
                 color: '#eee',
@@ -74,10 +78,12 @@
             modalContent.appendChild(inputId);
 
             const buttonsContainer = document.createElement('div');
-            buttonsContainer.style.display = 'none';
-            buttonsContainer.style.flexDirection = 'column';
-            buttonsContainer.style.gap = '10px';
-            buttonsContainer.style.marginBottom = '15px';
+            Object.assign(buttonsContainer.style, {
+                display: 'none',
+                flexDirection: 'column',
+                gap: '10px',
+                marginBottom: '20px'
+            });
             modalContent.appendChild(buttonsContainer);
 
             const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
@@ -86,7 +92,7 @@
                 btn.textContent = name;
                 Object.assign(btn.style, {
                     padding: '10px',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     border: '1px solid #555',
                     backgroundColor: '#333',
                     color: '#ccc',
@@ -112,11 +118,11 @@
             acceptBtn.textContent = 'Aceptar';
             Object.assign(acceptBtn.style, {
                 display: 'block',
-                margin: '0 auto 20px auto',
+                margin: '0 auto 0 auto',
                 padding: '10px 20px',
                 fontSize: '16px',
                 fontWeight: '600',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 border: 'none',
                 backgroundColor: '#007acc',
                 color: '#fff',
@@ -124,33 +130,24 @@
                 transition: 'background-color 0.3s ease'
             });
             acceptBtn.addEventListener('mouseenter', () => {
-                if (acceptBtn.textContent === 'Cerrar') {
-                    acceptBtn.style.backgroundColor = '#992222';
-                } else {
-                    acceptBtn.style.backgroundColor = '#005fa3';
-                }
+                acceptBtn.style.backgroundColor = (acceptBtn.textContent === 'Cerrar') ? '#992222' : '#005fa3';
             });
             acceptBtn.addEventListener('mouseleave', () => {
-                if (acceptBtn.textContent === 'Cerrar') {
-                    acceptBtn.style.backgroundColor = '#cc3333';
-                } else {
-                    acceptBtn.style.backgroundColor = '#007acc';
-                }
+                acceptBtn.style.backgroundColor = (acceptBtn.textContent === 'Cerrar') ? '#cc3333' : '#007acc';
             });
             acceptBtn.addEventListener('click', () => {
+                const idValue = inputId.value.trim();
                 if (acceptBtn.textContent === 'Cerrar') {
                     modal.style.display = 'none';
-                } else {
-                    const idValue = inputId.value.trim();
-                    if (idValue !== '') {
-                        buttonsContainer.style.display = 'flex';
-                        acceptBtn.textContent = 'Cerrar';
-                        acceptBtn.style.backgroundColor = '#cc3333';
-                    }
+                } else if (idValue !== '') {
+                    buttonsContainer.style.display = 'flex';
+                    acceptBtn.textContent = 'Cerrar';
+                    acceptBtn.style.backgroundColor = '#cc3333';
                 }
             });
             modalContent.appendChild(acceptBtn);
 
+            modal.appendChild(modalContent);
             document.body.appendChild(modal);
 
             window._modalBuscarID = {
