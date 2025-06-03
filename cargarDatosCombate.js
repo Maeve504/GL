@@ -1,31 +1,17 @@
-(function() {
-  function crearBarraProgreso() {
-    const existente = document.getElementById('barraProgresoCombate');
-    if (existente) return existente;
+// ==UserScript==
+// @name         CombatLog Recopilador
+// @namespace    Violentmonkey Scripts
+// @version      1.0
+// @description  Recopila combates de Gladiatus con progreso e información
+// @match        https://s*-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser*
+// @grant        none
+// ==/UserScript==
 
-    const barra = document.createElement('div');
-    barra.id = 'barraProgresoCombate';
-    barra.style.position = 'fixed';
-    barra.style.top = '0';
-    barra.style.left = '0';
-    barra.style.width = '0%';
-    barra.style.height = '6px';
-    barra.style.backgroundColor = '#4caf50';
-    barra.style.zIndex = '99999';
-    barra.style.transition = 'width 0.3s ease';
-    document.body.appendChild(barra);
-    return barra;
-  }
+(function () {
+  'use strict';
 
-  function actualizarBarraProgreso(porcentaje) {
-    const barra = crearBarraProgreso();
-    barra.style.width = `${porcentaje}%`;
-    if (porcentaje >= 100) {
-      setTimeout(() => barra.remove(), 1000);
-    }
-  }
-
-  async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
+  // ---- FUNCIÓN PRINCIPAL PARA RECOPILAR COMBATES CON PROGRESO ----
+  async function buscarCombatePorIDConProgreso(userId, tipoCombate, callbackProgreso) {
     const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
     const horasRecopiladas = [];
     let offset = 0;
@@ -37,13 +23,19 @@
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
+        // Verificar fin por texto
+        if (html.includes('No hay informes de combate disponibles.')) {
+          continuar = false;
+          break;
+        }
+
+        // Verificar existencia de la tabla y filas
         const table = doc.querySelector('table');
-        if (!table || table.textContent.includes('No hay informes de combate disponibles.')) break;
+        if (!table) break;
 
         const filas = table.querySelectorAll('tr');
         if (filas.length <= 1) break;
@@ -58,100 +50,108 @@
         paginasProcesadas++;
         offset += 30;
 
-        const btnSiguiente = Array.from(doc.querySelectorAll('a,button')).find(el => el.textContent.trim() === 'Siguiente »');
-        if (!btnSiguiente) continuar = false;
+        // Comprobar si hay botón siguiente
+        const siguienteExiste = html.includes('Siguiente &raquo;');
+        if (!siguienteExiste) continuar = false;
 
-        if (callbackProgreso) {
-          const progresoEstimado = Math.min(95, Math.floor((paginasProcesadas / 50) * 100));
-          callbackProgreso(progresoEstimado);
+        // Llamar progreso real
+        if (callbackProgreso && typeof callbackProgreso === 'function') {
+          callbackProgreso(`Recopilando página ${paginasProcesadas}...`);
         }
 
       } catch (error) {
         console.error('Error al cargar:', url, error);
-        break;
+        continuar = false;
       }
     }
 
-    if (callbackProgreso) callbackProgreso(100);
+    callbackProgreso('Completado.');
     return horasRecopiladas;
   }
 
-  function mostrarModalResultados(datos) {
-    const existente = document.getElementById('modalResultadosCombate');
-    if (existente) existente.remove();
+  // ---- INTERFAZ DE BOTÓN Y MODAL ----
+  function crearInterfaz() {
+    const boton = document.createElement('button');
+    boton.textContent = 'Recopilar Combates';
+    boton.style.position = 'fixed';
+    boton.style.top = '100px';
+    boton.style.right = '20px';
+    boton.style.zIndex = 1000;
+    boton.style.padding = '8px 12px';
+    boton.style.backgroundColor = '#c61ddf';
+    boton.style.color = '#fff';
+    boton.style.border = 'none';
+    boton.style.borderRadius = '6px';
+    boton.style.cursor = 'pointer';
+    document.body.appendChild(boton);
 
-    const overlay = document.createElement('div');
-    overlay.id = 'modalResultadosCombate';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '9999';
+    boton.addEventListener('click', async () => {
+      const userId = new URLSearchParams(window.location.search).get('user_id') || '';
+      const tipoCombate = new URLSearchParams(window.location.search).get('cType') || 0;
 
+      mostrarModal();
+
+      const resultados = await buscarCombatePorIDConProgreso(userId, tipoCombate, (progreso) => {
+        document.getElementById('gl-estado').textContent = progreso;
+      });
+
+      const tabla = document.getElementById('gl-tabla-resultados');
+      resultados.forEach(hora => {
+        const fila = document.createElement('tr');
+        const celda = document.createElement('td');
+        celda.textContent = hora;
+        fila.appendChild(celda);
+        tabla.appendChild(fila);
+      });
+    });
+  }
+
+  function mostrarModal() {
     const modal = document.createElement('div');
+    modal.id = 'gl-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '20%';
+    modal.style.left = '35%';
+    modal.style.width = '30%';
     modal.style.backgroundColor = '#fff';
+    modal.style.border = '2px solid #333';
     modal.style.borderRadius = '8px';
-    modal.style.padding = '12px';
-    modal.style.width = '550px';
-    modal.style.maxHeight = '70vh';
+    modal.style.zIndex = 10000;
     modal.style.display = 'flex';
-    modal.style.gap = '10px';
-    modal.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
-    modal.style.fontFamily = 'Arial, sans-serif';
-    modal.style.fontSize = '13px';
-    modal.style.color = '#333';
+    modal.style.flexDirection = 'row';
+    modal.style.padding = '10px';
 
-    const resultados = document.createElement('div');
-    resultados.style.flex = '1';
-    resultados.style.maxHeight = '58vh';
-    resultados.style.overflowY = 'auto';
-    resultados.style.border = '1px solid #ccc';
-    resultados.style.padding = '8px';
-    resultados.style.backgroundColor = '#f9f9f9';
-    resultados.style.whiteSpace = 'pre-wrap';
+    const contenido = document.createElement('div');
+    contenido.style.flex = '2';
+    contenido.style.maxHeight = '300px';
+    contenido.style.overflowY = 'scroll';
+    contenido.style.borderRight = '1px solid #ccc';
+    contenido.style.paddingRight = '10px';
 
-    const limpio = datos
-      .map(str => str.replace(/#\d+\s*/, '').trim())
-      .filter(str => str.length > 0)
-      .join('\n');
-
-    resultados.textContent = limpio;
-
-    const lateral = document.createElement('div');
-    lateral.style.width = '130px';
-    lateral.style.display = 'flex';
-    lateral.style.flexDirection = 'column';
-    lateral.style.justifyContent = 'space-between';
+    const tabla = document.createElement('table');
+    tabla.id = 'gl-tabla-resultados';
+    tabla.style.width = '100%';
+    tabla.style.borderCollapse = 'collapse';
+    contenido.appendChild(tabla);
 
     const info = document.createElement('div');
-    info.innerHTML = `<strong>INFORMACIÓN:</strong>`;
+    info.style.flex = '1';
+    info.style.paddingLeft = '10px';
+    info.innerHTML = `<strong>INFORMACIÓN:</strong><br><br>ahsufhansf`;
 
-    const cerrar = document.createElement('button');
-    cerrar.textContent = 'Cerrar';
-    cerrar.style.marginTop = '10px';
-    cerrar.style.padding = '4px';
-    cerrar.style.cursor = 'pointer';
-    cerrar.onclick = () => overlay.remove();
+    const pie = document.createElement('div');
+    pie.style.width = '100%';
+    pie.style.marginTop = '10px';
+    pie.innerHTML = `<div id="gl-estado" style="text-align:center; font-weight:bold;">Iniciando...</div>`;
 
-    lateral.appendChild(info);
-    lateral.appendChild(cerrar);
-
-    modal.appendChild(resultados);
-    modal.appendChild(lateral);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    modal.appendChild(contenido);
+    modal.appendChild(info);
+    modal.appendChild(pie);
+    document.body.appendChild(modal);
   }
 
-  async function recopilarYMostrar(userId, tipoCombate) {
-    actualizarBarraProgreso(0);
-    const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, actualizarBarraProgreso);
-    mostrarModalResultados(datos);
-  }
+  // ---- INICIAR INTERFAZ ----
+  window.buscarCombatePorIDConProgreso = buscarCombatePorIDConProgreso;
+  crearInterfaz();
 
-  window.recopilarYMostrarCombates = recopilarYMostrar;
 })();
