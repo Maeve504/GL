@@ -78,6 +78,6 @@
   }
 
   // Exportar globalmente
-  window.cargarDatosCombate = cargarDatosCombate;
+  window.buscarCombatePorID = cargarDatosCombate;
 
 })();
