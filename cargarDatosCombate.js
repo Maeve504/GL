@@ -114,7 +114,6 @@
             });
             modalContent.appendChild(tablaDatos);
 
-            // Añade los botones
             const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
             names.forEach(name => {
                 const btn = document.createElement('button');
@@ -145,78 +144,38 @@
                         return;
                     }
 
+                    console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
+
                     if (name === 'Arena') {
-                        buttonsContainer.style.pointerEvents = 'none';
-                        buttonsContainer.style.opacity = '0.6';
                         buttonsContainer.style.display = 'none';
                         mensajeCarga.style.display = 'block';
-                        tablaDatos.style.display = 'none';
-                        mensajeCarga.textContent = 'Cargando... 0%';
+                        mensajeCarga.textContent = 'Cargando...';
 
                         const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
 
-                        function cargarScript() {
-                            return new Promise((resolve, reject) => {
-                                if (document.querySelector(`script[src="${scriptUrl}"]`)) {
-                                    // Ya está cargado
-                                    resolve();
-                                    return;
-                                }
-                                const script = document.createElement('script');
-                                script.src = scriptUrl;
-                                script.onload = () => {
-                                    // Esperar un poco para que se ejecute el script
-                                    setTimeout(() => resolve(), 100);
-                                };
-                                script.onerror = () => reject(new Error('No se pudo cargar el script.'));
-                                document.body.appendChild(script);
-                            });
+                        function iniciarCarga() {
+                            if (typeof window.recopilarYMostrarCombates === 'function') {
+                                window.recopilarYMostrarCombates(idValue, 2);
+                            } else {
+                                alert('Función recopilarYMostrarCombates no encontrada.');
+                                buttonsContainer.style.display = 'flex';
+                                mensajeCarga.style.display = 'none';
+                            }
                         }
 
-                        cargarScript()
-                            .then(() => {
-                                if (typeof window.recopilarYMostrarCombates !== 'function') {
-                                    throw new Error('Función recopilarYMostrarCombates no encontrada.');
-                                }
-                                // Ejecutar función con ID y tipo 2, y esperar promesa de datos
-                                return window.recopilarYMostrarCombates(idValue, 2);
-                            })
-                            .then(datos => {
-                                mensajeCarga.textContent = `Carga finalizada. ${datos.length} registros encontrados.`;
-                                tablaDatos.style.display = 'table';
-
-                                tablaDatos.innerHTML = '';
-                                const thead = document.createElement('thead');
-                                thead.innerHTML = `<tr>
-                                    <th style="border: 1px solid #444; padding: 6px; width: 10%;">#</th>
-                                    <th style="border: 1px solid #444; padding: 6px;">Hora</th>
-                                </tr>`;
-                                tablaDatos.appendChild(thead);
-
-                                const tbody = document.createElement('tbody');
-                                datos.forEach((hora, i) => {
-                                    const fila = document.createElement('tr');
-                                    fila.innerHTML = `
-                                        <td style="border: 1px solid #444; padding: 6px; text-align: center;">${i + 1}</td>
-                                        <td style="border: 1px solid #444; padding: 6px; word-break: break-word;">${hora}</td>
-                                    `;
-                                    tbody.appendChild(fila);
-                                });
-                                tablaDatos.appendChild(tbody);
-
-                                buttonsContainer.style.pointerEvents = '';
-                                buttonsContainer.style.opacity = '1';
-                            })
-                            .catch(err => {
-                                alert(err.message || 'Error al cargar datos de combate.');
-                                console.error(err);
-                            })
-                            .finally(() => {
+                        if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
+                            const script = document.createElement('script');
+                            script.src = scriptUrl;
+                            script.onload = iniciarCarga;
+                            script.onerror = () => {
+                                alert('Error al cargar cargarDatosCombate.js');
                                 buttonsContainer.style.display = 'flex';
-                                buttonsContainer.style.pointerEvents = '';
-                                buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
-                            });
+                            };
+                            document.body.appendChild(script);
+                        } else {
+                            iniciarCarga();
+                        }
                     }
                 });
                 buttonsContainer.appendChild(btn);
@@ -251,11 +210,8 @@
                     buttonsContainer.style.display = 'flex';
                     acceptBtn.textContent = 'Cerrar';
                     acceptBtn.style.backgroundColor = '#cc3333';
-
                     mensajeCarga.style.display = 'none';
                     tablaDatos.style.display = 'none';
-                } else {
-                    alert('Introduce un ID válido');
                 }
             });
             modalContent.appendChild(acceptBtn);
@@ -271,12 +227,11 @@
                 mensajeCarga,
                 tablaDatos
             };
+        } else {
+            modal.style.display = 'flex';
         }
 
-        const { modal, inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
-
-        // Reset estado del modal cada vez que se abre
-        modal.style.display = 'flex';
+        const { inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
         inputId.value = '';
         buttonsContainer.style.display = 'none';
         buttonsContainer.style.pointerEvents = '';
