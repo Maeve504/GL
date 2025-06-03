@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         CombatLog Recopilador
+// @name         CombatLog Recopilador Mejorado
 // @namespace    Violentmonkey Scripts
-// @version      1.0
-// @description  Recopila combates de Gladiatus con progreso e información
+// @version      1.1
+// @description  Recopila combates con progreso e información
 // @match        https://s*-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser*
 // @grant        none
 // ==/UserScript==
@@ -10,7 +10,6 @@
 (function () {
   'use strict';
 
-  // ---- FUNCIÓN PRINCIPAL PARA RECOPILAR COMBATES CON PROGRESO ----
   async function buscarCombatePorIDConProgreso(userId, tipoCombate, callbackProgreso) {
     const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
     const horasRecopiladas = [];
@@ -27,13 +26,8 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Verificar fin por texto
-        if (html.includes('No hay informes de combate disponibles.')) {
-          continuar = false;
-          break;
-        }
+        if (html.includes('No hay informes de combate disponibles.')) break;
 
-        // Verificar existencia de la tabla y filas
         const table = doc.querySelector('table');
         if (!table) break;
 
@@ -50,26 +44,20 @@
         paginasProcesadas++;
         offset += 30;
 
-        // Comprobar si hay botón siguiente
         const siguienteExiste = html.includes('Siguiente &raquo;');
         if (!siguienteExiste) continuar = false;
 
-        // Llamar progreso real
-        if (callbackProgreso && typeof callbackProgreso === 'function') {
-          callbackProgreso(`Recopilando página ${paginasProcesadas}...`);
-        }
-
+        if (callbackProgreso) callbackProgreso(`Recopilando página ${paginasProcesadas}...`);
       } catch (error) {
         console.error('Error al cargar:', url, error);
         continuar = false;
       }
     }
 
-    callbackProgreso('Completado.');
+    if (callbackProgreso) callbackProgreso('Completado.');
     return horasRecopiladas;
   }
 
-  // ---- INTERFAZ DE BOTÓN Y MODAL ----
   function crearInterfaz() {
     const boton = document.createElement('button');
     boton.textContent = 'Recopilar Combates';
@@ -100,6 +88,7 @@
         const fila = document.createElement('tr');
         const celda = document.createElement('td');
         celda.textContent = hora;
+        celda.style.padding = '4px 8px';
         fila.appendChild(celda);
         tabla.appendChild(fila);
       });
@@ -110,9 +99,10 @@
     const modal = document.createElement('div');
     modal.id = 'gl-modal';
     modal.style.position = 'fixed';
-    modal.style.top = '20%';
-    modal.style.left = '35%';
-    modal.style.width = '30%';
+    modal.style.top = '15%';
+    modal.style.left = '25%';
+    modal.style.width = '50%';
+    modal.style.height = '400px';
     modal.style.backgroundColor = '#fff';
     modal.style.border = '2px solid #333';
     modal.style.borderRadius = '8px';
@@ -120,11 +110,12 @@
     modal.style.display = 'flex';
     modal.style.flexDirection = 'row';
     modal.style.padding = '10px';
+    modal.style.boxShadow = '0 0 15px rgba(0,0,0,0.3)';
 
     const contenido = document.createElement('div');
-    contenido.style.flex = '2';
-    contenido.style.maxHeight = '300px';
-    contenido.style.overflowY = 'scroll';
+    contenido.style.flex = '3';
+    contenido.style.maxHeight = '100%';
+    contenido.style.overflowY = 'auto';
     contenido.style.borderRight = '1px solid #ccc';
     contenido.style.paddingRight = '10px';
 
@@ -132,16 +123,19 @@
     tabla.id = 'gl-tabla-resultados';
     tabla.style.width = '100%';
     tabla.style.borderCollapse = 'collapse';
+    tabla.style.fontSize = '14px';
     contenido.appendChild(tabla);
 
     const info = document.createElement('div');
-    info.style.flex = '1';
+    info.style.flex = '2';
     info.style.paddingLeft = '10px';
     info.innerHTML = `<strong>INFORMACIÓN:</strong><br><br>ahsufhansf`;
 
     const pie = document.createElement('div');
+    pie.style.position = 'absolute';
+    pie.style.bottom = '10px';
+    pie.style.left = '0';
     pie.style.width = '100%';
-    pie.style.marginTop = '10px';
     pie.innerHTML = `<div id="gl-estado" style="text-align:center; font-weight:bold;">Iniciando...</div>`;
 
     modal.appendChild(contenido);
@@ -150,8 +144,6 @@
     document.body.appendChild(modal);
   }
 
-  // ---- INICIAR INTERFAZ ----
   window.buscarCombatePorIDConProgreso = buscarCombatePorIDConProgreso;
   crearInterfaz();
-
 })();
