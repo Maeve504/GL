@@ -1,165 +1,244 @@
-(function() {
-  function crearBarraProgreso() {
-    const existente = document.getElementById('barraProgresoCombate');
-    if (existente) return existente;
+(function () {
+    'use strict';
 
-    const barra = document.createElement('div');
-    barra.id = 'barraProgresoCombate';
-    barra.style.position = 'fixed';
-    barra.style.top = '0';
-    barra.style.left = '0';
-    barra.style.width = '0%';
-    barra.style.height = '6px';
-    barra.style.backgroundColor = '#4caf50';
-    barra.style.zIndex = '99999';
-    barra.style.transition = 'width 0.3s ease';
-    document.body.appendChild(barra);
-    return barra;
-  }
+    window.abrirModalID = function () {
+        let modal = document.getElementById('modalBuscarID');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modalBuscarID';
+            Object.assign(modal.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: '100000'
+            });
 
-  function actualizarBarraProgreso(porcentaje) {
-    const barra = crearBarraProgreso();
-    barra.style.width = `${porcentaje}%`;
-    if (porcentaje >= 100) {
-      setTimeout(() => barra.remove(), 1000);
-    }
-  }
+            const modalContent = document.createElement('div');
+            Object.assign(modalContent.style, {
+                backgroundColor: '#1f1f1f',
+                padding: '30px 40px',
+                borderRadius: '12px',
+                minWidth: '360px',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+                color: '#e0e0e0',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                position: 'relative'
+            });
 
-  async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
-    const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
-    const horasRecopiladas = [];
-    let offset = 0;
-    let continuar = true;
-    let paginasProcesadas = 0;
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '&times;';
+            Object.assign(closeBtn.style, {
+                position: 'absolute',
+                top: '12px',
+                right: '16px',
+                fontSize: '28px',
+                background: 'transparent',
+                color: '#aaa',
+                border: 'none',
+                cursor: 'pointer'
+            });
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+            modalContent.appendChild(closeBtn);
 
-    while (continuar) {
-      const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const titulo = document.createElement('h2');
+            titulo.textContent = 'Buscar por ID';
+            Object.assign(titulo.style, {
+                marginBottom: '20px',
+                fontSize: '22px',
+                fontWeight: '600',
+                textAlign: 'center',
+                color: '#e0e0e0'
+            });
+            modalContent.appendChild(titulo);
 
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+            const inputId = document.createElement('input');
+            inputId.type = 'text';
+            inputId.placeholder = 'Introduce ID numérica';
+            Object.assign(inputId.style, {
+                width: '100%',
+                padding: '12px 15px',
+                fontSize: '16px',
+                borderRadius: '6px',
+                border: '1px solid #444',
+                backgroundColor: '#2a2a2a',
+                color: '#eee',
+                marginBottom: '20px',
+                boxSizing: 'border-box'
+            });
+            inputId.addEventListener('input', () => {
+                inputId.value = inputId.value.replace(/\D/g, '');
+            });
+            modalContent.appendChild(inputId);
 
-        const table = doc.querySelector('table');
-        if (!table || table.textContent.includes('No hay informes de combate disponibles.')) break;
+            const buttonsContainer = document.createElement('div');
+            Object.assign(buttonsContainer.style, {
+                display: 'none',
+                flexDirection: 'column',
+                gap: '10px',
+                marginBottom: '20px'
+            });
+            modalContent.appendChild(buttonsContainer);
 
-        const filas = table.querySelectorAll('tr');
-        if (filas.length <= 1) break;
+            const mensajeCarga = document.createElement('div');
+            mensajeCarga.id = 'mensajeCarga';
+            Object.assign(mensajeCarga.style, {
+                color: '#eee',
+                fontSize: '18px',
+                textAlign: 'center',
+                marginBottom: '15px',
+                display: 'none'
+            });
+            modalContent.appendChild(mensajeCarga);
 
-        for (let i = 1; i < filas.length; i++) {
-          const celdas = filas[i].querySelectorAll('td');
-          if (celdas.length === 0) continue;
-          const horaTexto = celdas[0].textContent.trim();
-          if (horaTexto) horasRecopiladas.push(horaTexto);
+            const tablaDatos = document.createElement('table');
+            tablaDatos.id = 'tablaDatos';
+            Object.assign(tablaDatos.style, {
+                width: '100%',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                display: 'none',
+                backgroundColor: '#222',
+                color: '#eee',
+                borderCollapse: 'collapse',
+                marginTop: '10px',
+                tableLayout: 'fixed'
+            });
+            modalContent.appendChild(tablaDatos);
+
+            const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
+            names.forEach(name => {
+                const btn = document.createElement('button');
+                btn.textContent = name;
+                Object.assign(btn.style, {
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#333',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease-in-out'
+                });
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.backgroundColor = '#444';
+                    btn.style.color = '#fff';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.backgroundColor = '#333';
+                    btn.style.color = '#ccc';
+                });
+
+                btn.addEventListener('click', () => {
+                    const idValue = inputId.value.trim();
+                    if (!idValue) {
+                        alert('Introduce un ID válido');
+                        return;
+                    }
+
+                    console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
+
+                    if (name === 'Arena') {
+                        buttonsContainer.style.display = 'none';
+                        mensajeCarga.style.display = 'block';
+                        mensajeCarga.textContent = 'Cargando...';
+
+                        const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
+
+                        function iniciarCarga() {
+                            if (typeof window.recopilarYMostrarCombates === 'function') {
+                                window.recopilarYMostrarCombates(idValue, 2);
+                            } else {
+                                alert('Función recopilarYMostrarCombates no encontrada.');
+                                buttonsContainer.style.display = 'flex';
+                                mensajeCarga.style.display = 'none';
+                            }
+                        }
+
+                        if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
+                            const script = document.createElement('script');
+                            script.src = scriptUrl;
+                            script.onload = iniciarCarga;
+                            script.onerror = () => {
+                                alert('Error al cargar cargarDatosCombate.js');
+                                buttonsContainer.style.display = 'flex';
+                                mensajeCarga.style.display = 'none';
+                            };
+                            document.body.appendChild(script);
+                        } else {
+                            iniciarCarga();
+                        }
+                    }
+                });
+                buttonsContainer.appendChild(btn);
+            });
+
+            const acceptBtn = document.createElement('button');
+            acceptBtn.textContent = 'Aceptar';
+            Object.assign(acceptBtn.style, {
+                display: 'block',
+                margin: '0 auto 0 auto',
+                padding: '10px 20px',
+                fontSize: '16px',
+                fontWeight: '600',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: '#007acc',
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease'
+            });
+            acceptBtn.addEventListener('mouseenter', () => {
+                acceptBtn.style.backgroundColor = (acceptBtn.textContent === 'Cerrar') ? '#992222' : '#005fa3';
+            });
+            acceptBtn.addEventListener('mouseleave', () => {
+                acceptBtn.style.backgroundColor = (acceptBtn.textContent === 'Cerrar') ? '#cc3333' : '#007acc';
+            });
+            acceptBtn.addEventListener('click', () => {
+                const idValue = inputId.value.trim();
+                if (acceptBtn.textContent === 'Cerrar') {
+                    modal.style.display = 'none';
+                } else if (idValue !== '') {
+                    buttonsContainer.style.display = 'flex';
+                    acceptBtn.textContent = 'Cerrar';
+                    acceptBtn.style.backgroundColor = '#cc3333';
+                    mensajeCarga.style.display = 'none';
+                    tablaDatos.style.display = 'none';
+                }
+            });
+            modalContent.appendChild(acceptBtn);
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            window._modalBuscarID = {
+                modal,
+                inputId,
+                buttonsContainer,
+                acceptBtn,
+                mensajeCarga,
+                tablaDatos
+            };
+        } else {
+            modal.style.display = 'flex';
         }
 
-        paginasProcesadas++;
-        offset += 30;
-
-        const btnSiguiente = Array.from(doc.querySelectorAll('a,button')).find(el => el.textContent.trim() === 'Siguiente »');
-        if (!btnSiguiente) continuar = false;
-
-        if (callbackProgreso) {
-          const progresoEstimado = Math.min(95, Math.floor((paginasProcesadas / 50) * 100));
-          callbackProgreso(progresoEstimado);
-        }
-
-      } catch (error) {
-        console.error('Error al cargar:', url, error);
-        break;
-      }
-    }
-
-    if (callbackProgreso) callbackProgreso(100);
-    return horasRecopiladas;
-  }
-
-  function mostrarModalResultados(datos) {
-    const existente = document.getElementById('modalResultadosCombate');
-    if (existente) existente.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'modalResultadosCombate';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '9999';
-
-    const modal = document.createElement('div');
-    modal.style.backgroundColor = '#fff';
-    modal.style.borderRadius = '8px';
-    modal.style.padding = '12px';
-    modal.style.width = '550px';
-    modal.style.maxHeight = '70vh';
-    modal.style.display = 'flex';
-    modal.style.gap = '10px';
-    modal.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
-    modal.style.fontFamily = 'Arial, sans-serif';
-    modal.style.fontSize = '13px';
-    modal.style.color = '#333';
-
-    const resultados = document.createElement('div');
-    resultados.style.flex = '1';
-    resultados.style.maxHeight = '58vh';
-    resultados.style.overflowY = 'auto';
-    resultados.style.border = '1px solid #ccc';
-    resultados.style.padding = '8px';
-    resultados.style.backgroundColor = '#f9f9f9';
-    resultados.style.whiteSpace = 'pre-wrap';
-
-    const limpio = datos
-      .map(str => str.replace(/#\d+\s*/, '').trim())
-      .filter(str => str.length > 0)
-      .join('\n');
-
-    resultados.textContent = limpio;
-
-    const lateral = document.createElement('div');
-    lateral.style.width = '130px';
-    lateral.style.display = 'flex';
-    lateral.style.flexDirection = 'column';
-    lateral.style.justifyContent = 'space-between';
-
-    const info = document.createElement('div');
-    info.innerHTML = `<strong>INFORMACIÓN:</strong>`;
-
-    const cerrar = document.createElement('button');
-    cerrar.textContent = 'Cerrar';
-    cerrar.style.marginTop = '10px';
-    cerrar.style.padding = '4px';
-    cerrar.style.cursor = 'pointer';
-    cerrar.onclick = () => overlay.remove();
-
-    lateral.appendChild(info);
-    lateral.appendChild(cerrar);
-
-    modal.appendChild(resultados);
-    modal.appendChild(lateral);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-  }
-
-  async function recopilarYMostrar(userId, tipoCombate) {
-    actualizarBarraProgreso(0);
-    const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, actualizarBarraProgreso);
-    mostrarModalResultados(datos);
-  }
-
-  // EXPONE LA FUNCIÓN PARA USO EN MODAL
-  window.buscarCombatePorIDConProgreso = async function(userId, tipoCombate, callbackProgreso) {
-    actualizarBarraProgreso(0);
-    const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso);
-    return datos;
-  };
-
-  // EXPONE LA FUNCIONALIDAD ORIGINAL
-  window.recopilarYMostrarCombates = recopilarYMostrar;
+        const { inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
+        inputId.value = '';
+        buttonsContainer.style.display = 'none';
+        buttonsContainer.style.pointerEvents = '';
+        buttonsContainer.style.opacity = '1';
+        mensajeCarga.style.display = 'none';
+        tablaDatos.style.display = 'none';
+        acceptBtn.textContent = 'Aceptar';
+        acceptBtn.style.backgroundColor = '#007acc';
+    };
 })();
