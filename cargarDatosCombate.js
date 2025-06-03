@@ -1,25 +1,22 @@
-// ==UserScript==
-// @name         Cargar Datos Combate Gladiatus
-// @description  Recopila horas de combate de todas las páginas de un usuario en Gladiatus (Arena, CT, Expedición, Mazmorra).
-// @version      1.0
-// @author       TuNombre
-// ==/UserScript==
-
 (function() {
   /**
-   * Función principal que recopila las horas de combate.
+   * Función que recopila horas de combate e informa progreso.
    * @param {number|string} userId - ID del usuario.
    * @param {number|string} tipoCombate - Tipo de combate (2=Arena, 3=CT, 0=Expedición, 1=Mazmorra).
-   * @returns {Promise<string[]>} - Promesa que resuelve con un array de horas (strings).
+   * @param {(porcentaje:number)=>void} [callbackProgreso] - Función opcional para progreso (0-100).
+   * @returns {Promise<string[]>} - Promesa que resuelve con un array de horas.
    */
-  async function cargarDatosCombate(userId, tipoCombate) {
+  async function cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso) {
     const baseUrl = 'https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog&mode=showUser';
     const horasRecopiladas = [];
     let offset = 0;
     let continuar = true;
+    let paginasProcesadas = 0;
 
-    // Imagen de carga en consola (puedes cambiar o eliminar si no quieres)
-    console.log('Cargando datos...');
+    // Para calcular progreso debemos estimar un máximo de páginas.
+    // No hay info directa, así que vamos a asumir un máximo de 10 páginas.
+    // Si quieres, cambia este valor a otro mayor o ajustable.
+    const maxPaginasEstimadas = 10;
 
     while (continuar) {
       const url = `${baseUrl}&user_id=${userId}&cType=${tipoCombate}&offset=${offset}`;
@@ -31,15 +28,12 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Buscar tabla y extraer horas debajo de <th>
         const table = doc.querySelector('table');
         if (!table) {
           console.warn('No se encontró tabla en la página:', url);
           break;
         }
 
-        // Encontrar la fila que contiene las horas (debajo del encabezado <th>)
-        // Asumo que las horas están en la segunda columna de cada fila (ajusta si es necesario)
         const filas = table.querySelectorAll('tr');
         if (filas.length <= 1) {
           // No hay filas con datos, fin de páginas
@@ -47,12 +41,9 @@
         }
 
         let filasConDatos = 0;
-        for (let i = 1; i < filas.length; i++) { // i=1 para saltar el encabezado
+        for (let i = 1; i < filas.length; i++) { // saltar encabezado
           const celdas = filas[i].querySelectorAll('td');
           if (celdas.length === 0) continue;
-
-          // Aquí asumimos que la hora está en la primera celda o en la que corresponda
-          // Si la hora está justo debajo de <th> en la primera columna:
           const horaTexto = celdas[0].textContent.trim();
           if (horaTexto) {
             horasRecopiladas.push(horaTexto);
@@ -61,10 +52,22 @@
         }
 
         if (filasConDatos === 0) {
-          // No se encontraron datos en esta página, fin
           continuar = false;
         } else {
-          offset += 30; // Avanzar a la siguiente página
+          offset += 30;
+          paginasProcesadas++;
+
+          // Llamar callback progreso si existe
+          if (callbackProgreso && typeof callbackProgreso === 'function') {
+            // Progreso calculado en porcentaje (máximo maxPaginasEstimadas páginas)
+            let porcentaje = Math.min(100, Math.floor((paginasProcesadas / maxPaginasEstimadas) * 100));
+            callbackProgreso(porcentaje);
+          }
+        }
+
+        // Si llegamos a max páginas estimadas forzamos fin para no infinite loop
+        if (paginasProcesadas >= maxPaginasEstimadas) {
+          continuar = false;
         }
 
       } catch (error) {
@@ -73,11 +76,15 @@
       }
     }
 
-    console.log('Datos cargados:', horasRecopiladas);
+    // Finalizamos con 100% para asegurarnos
+    if (callbackProgreso && typeof callbackProgreso === 'function') {
+      callbackProgreso(100);
+    }
+
     return horasRecopiladas;
   }
 
-  // Exportar globalmente
-  window.buscarCombatePorID = cargarDatosCombate;
+  // Exportamos esta función para usar con progreso
+  window.buscarCombatePorIDConProgreso = cargarDatosCombateConProgreso;
 
 })();
