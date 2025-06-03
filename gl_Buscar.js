@@ -1,208 +1,180 @@
-(function() {
-    'use strict';
+(function () {
+  'use strict';
 
-    // Función para crear y mostrar el modal
-    window.abrirModalID = function() {
-        let modal = document.getElementById('modalBuscarID');
-        if (!modal) {
-            // Crear modal (sólo la primera vez)
-            modal = document.createElement('div');
-            modal.id = 'modalBuscarID';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100vw';
-            modal.style.height = '100vh';
-            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            modal.style.zIndex = '100000';
+  // Función principal para abrir el primer modal
+  window.abrirModalID = function () {
+    let modal = document.getElementById('modalBuscarID');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalBuscarID';
+      Object.assign(modal.style, {
+        position: 'fixed',
+        top: '0', left: '0', width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        zIndex: '100000',
+      });
 
-            const modalContent = document.createElement('div');
-            modalContent.style.backgroundColor = '#b3b3b3'; // fondo gris medio
-            modalContent.style.padding = '30px 40px';
-            modalContent.style.borderRadius = '12px';
-            modalContent.style.position = 'relative';
-            modalContent.style.minWidth = '360px';
-            modalContent.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
-            modalContent.style.border = '3px solid #b37f34'; // naranja dorado
-            modal.appendChild(modalContent);
+      const modalContent = document.createElement('div');
+      Object.assign(modalContent.style, {
+        background: '#1e1e2f',
+        padding: '30px 40px',
+        borderRadius: '14px',
+        minWidth: '400px',
+        boxShadow: '0 12px 30px rgba(0, 255, 255, 0.3)',
+        position: 'relative',
+        color: '#d4f1f9',
+        textAlign: 'center',
+        fontFamily: 'Segoe UI, sans-serif',
+      });
 
-            // Botón cerrar
-            const closeBtn = document.createElement('button');
-            closeBtn.innerHTML = '&times;';
-            closeBtn.style.position = 'absolute';
-            closeBtn.style.top = '15px';
-            closeBtn.style.right = '20px';
-            closeBtn.style.fontSize = '24px';
-            closeBtn.style.backgroundColor = '#b37f34';
-            closeBtn.style.border = 'none';
-            closeBtn.style.color = '#fff';
-            closeBtn.style.fontWeight = '700';
-            closeBtn.style.lineHeight = '1';
-            closeBtn.style.borderRadius = '50%';
-            closeBtn.style.width = '34px';
-            closeBtn.style.height = '34px';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.style.display = 'flex';
-            closeBtn.style.alignItems = 'center';
-            closeBtn.style.justifyContent = 'center';
-            closeBtn.style.transition = 'background-color 0.3s';
-            closeBtn.addEventListener('mouseenter', () => closeBtn.style.backgroundColor = '#8e6730');
-            closeBtn.addEventListener('mouseleave', () => closeBtn.style.backgroundColor = '#b37f34');
-            closeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-            });
-            modalContent.appendChild(closeBtn);
+      // Botón de cerrar
+      const closeBtn = document.createElement('button');
+      closeBtn.innerHTML = '&times;';
+      Object.assign(closeBtn.style, {
+        position: 'absolute',
+        top: '15px', right: '20px',
+        background: '#0ff',
+        color: '#000',
+        fontSize: '20px',
+        border: 'none',
+        borderRadius: '50%',
+        width: '32px', height: '32px',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        transition: 'background 0.3s',
+      });
+      closeBtn.addEventListener('mouseenter', () => closeBtn.style.background = '#0cc');
+      closeBtn.addEventListener('mouseleave', () => closeBtn.style.background = '#0ff');
+      closeBtn.onclick = () => modal.style.display = 'none';
+      modalContent.appendChild(closeBtn);
 
-            // Título con icono lupa
-            const titulo = document.createElement('h2');
-            titulo.style.display = 'flex';
-            titulo.style.alignItems = 'center';
-            titulo.style.gap = '10px';
-            titulo.style.margin = '0 0 20px 0';
-            titulo.style.color = '#b37f34';
-            titulo.style.fontWeight = '700';
-            titulo.style.fontSize = '24px';
+      // Título
+      const title = document.createElement('h2');
+      title.textContent = 'Buscar Usuario por ID';
+      Object.assign(title.style, {
+        marginBottom: '20px',
+        fontSize: '24px',
+        color: '#0ff',
+      });
+      modalContent.appendChild(title);
 
-            const iconLupa = document.createElement('span');
-            iconLupa.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" height="28" viewBox="0 0 24 24" width="28" fill="#b37f34">
-                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM9.5 14C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
-            `;
-            titulo.appendChild(iconLupa);
-            titulo.appendChild(document.createTextNode('Buscador'));
-            modalContent.appendChild(titulo);
+      // Input de ID
+      const inputId = document.createElement('input');
+      inputId.type = 'text';
+      inputId.placeholder = 'Escribe la ID numérica...';
+      Object.assign(inputId.style, {
+        width: '100%',
+        padding: '12px',
+        borderRadius: '8px',
+        border: '2px solid #0ff',
+        fontSize: '16px',
+        color: '#0ff',
+        background: '#121222',
+        marginBottom: '20px',
+        boxSizing: 'border-box',
+      });
+      inputId.addEventListener('input', () => {
+        inputId.value = inputId.value.replace(/\D/g, '');
+      });
+      modalContent.appendChild(inputId);
 
-            // Input
-            const inputId = document.createElement('input');
-            inputId.type = 'text';
-            inputId.placeholder = 'Introducir ID del usuario';
-            inputId.style.width = '100%';
-            inputId.style.padding = '12px 15px';
-            inputId.style.fontSize = '18px';
-            inputId.style.borderRadius = '8px';
-            inputId.style.border = '2px solid #b37f34';
-            inputId.style.marginBottom = '25px';
-            inputId.style.boxSizing = 'border-box';
-            inputId.style.fontWeight = '600';
-            inputId.style.color = '#b37f34';
-            inputId.style.transition = 'border-color 0.3s';
-            inputId.addEventListener('focus', () => inputId.style.borderColor = '#8e6730');
-            inputId.addEventListener('blur', () => inputId.style.borderColor = '#b37f34');
-            inputId.addEventListener('input', () => {
-                inputId.value = inputId.value.replace(/\D/g, '');
-            });
-            modalContent.appendChild(inputId);
+      // Botón aceptar
+      const acceptBtn = document.createElement('button');
+      acceptBtn.textContent = 'Aceptar';
+      Object.assign(acceptBtn.style, {
+        background: 'linear-gradient(45deg, #0ff, #0aa)',
+        color: '#000',
+        border: 'none',
+        padding: '12px 25px',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'transform 0.2s ease, box-shadow 0.3s',
+      });
+      acceptBtn.onmouseenter = () => {
+        acceptBtn.style.transform = 'scale(1.05)';
+        acceptBtn.style.boxShadow = '0 6px 16px rgba(0, 255, 255, 0.7)';
+      };
+      acceptBtn.onmouseleave = () => {
+        acceptBtn.style.transform = 'scale(1)';
+        acceptBtn.style.boxShadow = 'none';
+      };
+      acceptBtn.onclick = () => {
+        const id = inputId.value.trim();
+        if (!id) return;
 
-            // Botones secundarios (contenedor)
-            const buttonsContainer = document.createElement('div');
-            buttonsContainer.style.display = 'none';
-            buttonsContainer.style.flexDirection = 'column';
-            buttonsContainer.style.gap = '12px';
-            buttonsContainer.style.marginBottom = '25px';
-            modalContent.appendChild(buttonsContainer);
+        modal.style.display = 'none';
+        mostrarModalResultado(id);
+      };
+      modalContent.appendChild(acceptBtn);
 
-            const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
-            names.forEach(name => {
-                const btn = document.createElement('button');
-                btn.textContent = name;
-                btn.style.padding = '10px 0';
-                btn.style.borderRadius = '8px';
-                btn.style.border = '2px solid #b37f34';
-                btn.style.backgroundColor = 'transparent';
-                btn.style.color = '#b37f34';
-                btn.style.cursor = 'pointer';
-                btn.style.fontWeight = '700';
-                btn.style.fontSize = '16px';
-                btn.style.width = '100%';
-                btn.style.transition = 'background-color 0.3s, color 0.3s';
-                btn.addEventListener('mouseenter', () => {
-                    btn.style.backgroundColor = '#b37f34';
-                    btn.style.color = '#fff';
-                });
-                btn.addEventListener('mouseleave', () => {
-                    btn.style.backgroundColor = 'transparent';
-                    btn.style.color = '#b37f34';
-                });
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+    } else {
+      modal.style.display = 'flex';
+    }
 
-                // Aquí puedes añadir funcionalidad a los botones secundarios, por ejemplo:
-                btn.addEventListener('click', () => {
-                    alert(`Botón secundario pulsado: ${name}\nID buscada: ${inputId.value.trim()}`);
-                    // Aquí podrías hacer algo con el ID y el tipo de búsqueda (name)
-                });
+    // Reset
+    modal.querySelector('input').value = '';
+    modal.querySelector('input').focus();
+  };
 
-                buttonsContainer.appendChild(btn);
-            });
+  // Segundo modal: muestra los resultados tras aceptar la ID
+  function mostrarModalResultado(id) {
+    let modal = document.getElementById('modalResultadoID');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalResultadoID';
+      Object.assign(modal.style, {
+        position: 'fixed',
+        top: '0', left: '0', width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        zIndex: '100001',
+      });
 
-            // Botón aceptar
-            const acceptBtn = document.createElement('button');
-            acceptBtn.textContent = 'Aceptar';
-            acceptBtn.style.display = 'block';
-            acceptBtn.style.margin = '0 auto';
-            acceptBtn.style.padding = '10px 25px';
-            acceptBtn.style.fontSize = '18px';
-            acceptBtn.style.fontWeight = '700';
-            acceptBtn.style.borderRadius = '12px';
-            acceptBtn.style.border = 'none';
-            acceptBtn.style.color = '#fff';
-            acceptBtn.style.background = 'linear-gradient(45deg, #b37f34, #8e6730)';
-            acceptBtn.style.boxShadow = '0 4px 12px rgba(179, 127, 52, 0.6)';
-            acceptBtn.style.cursor = 'pointer';
-            acceptBtn.style.transition = 'transform 0.2s ease-in-out, box-shadow 0.3s';
-            acceptBtn.addEventListener('mouseenter', () => {
-                acceptBtn.style.transform = 'scale(1.05)';
-                acceptBtn.style.boxShadow = '0 6px 16px rgba(179, 127, 52, 0.9)';
-            });
-            acceptBtn.addEventListener('mouseleave', () => {
-                acceptBtn.style.transform = 'scale(1)';
-                acceptBtn.style.boxShadow = '0 4px 12px rgba(179, 127, 52, 0.6)';
-            });
+      const box = document.createElement('div');
+      Object.assign(box.style, {
+        background: '#121222',
+        padding: '30px 40px',
+        borderRadius: '14px',
+        color: '#0ff',
+        textAlign: 'center',
+        minWidth: '350px',
+        boxShadow: '0 10px 25px rgba(0,255,255,0.2)',
+        fontFamily: 'Segoe UI, sans-serif',
+        position: 'relative',
+      });
 
-            acceptBtn.addEventListener('click', () => {
-                const idValue = inputId.value.trim();
-                if(idValue === '') {
-                    alert('Por favor, introduce una ID válida (solo números).');
-                    return;
-                }
-                // Mostrar botones secundarios
-                buttonsContainer.style.display = 'flex';
+      const close = document.createElement('button');
+      close.innerHTML = '&times;';
+      Object.assign(close.style, {
+        position: 'absolute', top: '15px', right: '20px',
+        background: '#0ff',
+        color: '#000',
+        border: 'none',
+        borderRadius: '50%',
+        width: '30px', height: '30px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+      });
+      close.onclick = () => modal.style.display = 'none';
+      box.appendChild(close);
 
-                // --- Aquí integras la función de búsqueda ---
-                // Por ejemplo, un alert con la ID, luego lo puedes cambiar por AJAX o lo que quieras:
-                alert(`Buscando usuario con ID: ${idValue}`);
+      const resultText = document.createElement('div');
+      resultText.id = 'resultadoBusquedaTexto';
+      resultText.style.fontSize = '18px';
+      box.appendChild(resultText);
 
-                // Ejemplo ficticio de búsqueda:
-                // buscarUsuarioPorID(idValue).then(resultado => {
-                //     console.log('Resultado:', resultado);
-                //     // Aquí puedes mostrar resultados dentro del modal si quieres
-                // }).catch(err => {
-                //     alert('Error al buscar usuario');
-                // });
-            });
+      modal.appendChild(box);
+      document.body.appendChild(modal);
+    }
 
-            modalContent.appendChild(acceptBtn);
+    document.getElementById('resultadoBusquedaTexto').textContent =
+      `Buscando información del usuario con ID: ${id}...`;
 
-            document.body.appendChild(modal);
-
-            // Guardamos referencias para usar fuera del if
-            window._modalBuscarID = {
-                modal,
-                inputId,
-                buttonsContainer
-            };
-
-        } else {
-            // Ya existe el modal
-            modal.style.display = 'flex';
-        }
-
-        // Reiniciar estado cada vez que se abre
-        window._modalBuscarID.inputId.value = '';
-        window._modalBuscarID.buttonsContainer.style.display = 'none';
-        window._modalBuscarID.inputId.focus();
-    };
-
+    document.getElementById('modalResultadoID').style.display = 'flex';
+  }
 })();
