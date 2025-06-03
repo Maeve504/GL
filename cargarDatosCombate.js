@@ -152,6 +152,11 @@
     const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, actualizarBarraProgreso);
     mostrarModalResultados(datos);
   }
+  window.buscarCombatePorIDConProgreso = async function(userId, tipoCombate, callbackProgreso) {
+    actualizarBarraProgreso(0);
+    const datos = await cargarDatosCombateConProgreso(userId, tipoCombate, callbackProgreso);
+    return datos;
+  };
 
   window.recopilarYMostrarCombates = recopilarYMostrar;
 })();
