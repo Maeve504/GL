@@ -88,7 +88,6 @@
             });
             modalContent.appendChild(buttonsContainer);
 
-            // Contenedor para mensaje de carga
             const mensajeCarga = document.createElement('div');
             mensajeCarga.id = 'mensajeCarga';
             Object.assign(mensajeCarga.style, {
@@ -100,7 +99,6 @@
             });
             modalContent.appendChild(mensajeCarga);
 
-            // Tabla para mostrar resultados
             const tablaDatos = document.createElement('table');
             tablaDatos.id = 'tablaDatos';
             Object.assign(tablaDatos.style, {
@@ -116,6 +114,7 @@
             });
             modalContent.appendChild(tablaDatos);
 
+            // Añade los botones
             const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
             names.forEach(name => {
                 const btn = document.createElement('button');
@@ -146,12 +145,9 @@
                         return;
                     }
 
-                    console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
-
                     if (name === 'Arena') {
-                        buttonsContainer.style.pointerEvents = 'none'; // bloqueo clicks
+                        buttonsContainer.style.pointerEvents = 'none';
                         buttonsContainer.style.opacity = '0.6';
-
                         buttonsContainer.style.display = 'none';
                         mensajeCarga.style.display = 'block';
                         tablaDatos.style.display = 'none';
@@ -159,70 +155,69 @@
 
                         const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
 
-                        function iniciarCarga() {
-                            if (typeof window.recopilarYMostrarCombates === 'function') {
-                                // La función recopilarYMostrarCombates debe devolver Promise con datos
-                                window.recopilarYMostrarCombates(idValue, 2)
-                                    .then(datos => {
-                                        mensajeCarga.textContent = `Carga finalizada. ${datos.length} registros encontrados.`;
-                                        tablaDatos.style.display = 'table';
+                        function cargarScript() {
+                            return new Promise((resolve, reject) => {
+                                if (document.querySelector(`script[src="${scriptUrl}"]`)) {
+                                    // Ya está cargado
+                                    resolve();
+                                    return;
+                                }
+                                const script = document.createElement('script');
+                                script.src = scriptUrl;
+                                script.onload = () => {
+                                    // Esperar un poco para que se ejecute el script
+                                    setTimeout(() => resolve(), 100);
+                                };
+                                script.onerror = () => reject(new Error('No se pudo cargar el script.'));
+                                document.body.appendChild(script);
+                            });
+                        }
 
-                                        tablaDatos.innerHTML = '';
-                                        const thead = document.createElement('thead');
-                                        thead.innerHTML = `<tr>
-                                            <th style="border: 1px solid #444; padding: 6px; width: 10%;">#</th>
-                                            <th style="border: 1px solid #444; padding: 6px;">Hora</th>
-                                        </tr>`;
-                                        tablaDatos.appendChild(thead);
+                        cargarScript()
+                            .then(() => {
+                                if (typeof window.recopilarYMostrarCombates !== 'function') {
+                                    throw new Error('Función recopilarYMostrarCombates no encontrada.');
+                                }
+                                // Ejecutar función con ID y tipo 2, y esperar promesa de datos
+                                return window.recopilarYMostrarCombates(idValue, 2);
+                            })
+                            .then(datos => {
+                                mensajeCarga.textContent = `Carga finalizada. ${datos.length} registros encontrados.`;
+                                tablaDatos.style.display = 'table';
 
-                                        const tbody = document.createElement('tbody');
-                                        datos.forEach((hora, i) => {
-                                            const fila = document.createElement('tr');
-                                            fila.innerHTML = `
-                                                <td style="border: 1px solid #444; padding: 6px; text-align: center;">${i + 1}</td>
-                                                <td style="border: 1px solid #444; padding: 6px; word-break: break-word;">${hora}</td>
-                                            `;
-                                            tbody.appendChild(fila);
-                                        });
-                                        tablaDatos.appendChild(tbody);
+                                tablaDatos.innerHTML = '';
+                                const thead = document.createElement('thead');
+                                thead.innerHTML = `<tr>
+                                    <th style="border: 1px solid #444; padding: 6px; width: 10%;">#</th>
+                                    <th style="border: 1px solid #444; padding: 6px;">Hora</th>
+                                </tr>`;
+                                tablaDatos.appendChild(thead);
 
-                                        buttonsContainer.style.pointerEvents = '';
-                                        buttonsContainer.style.opacity = '1';
+                                const tbody = document.createElement('tbody');
+                                datos.forEach((hora, i) => {
+                                    const fila = document.createElement('tr');
+                                    fila.innerHTML = `
+                                        <td style="border: 1px solid #444; padding: 6px; text-align: center;">${i + 1}</td>
+                                        <td style="border: 1px solid #444; padding: 6px; word-break: break-word;">${hora}</td>
+                                    `;
+                                    tbody.appendChild(fila);
+                                });
+                                tablaDatos.appendChild(tbody);
 
-                                    }).catch(err => {
-                                        alert('Error al cargar datos de combate.');
-                                        console.error(err);
-                                        buttonsContainer.style.display = 'flex';
-                                        buttonsContainer.style.pointerEvents = '';
-                                        buttonsContainer.style.opacity = '1';
-                                        mensajeCarga.style.display = 'none';
-                                    });
-                            } else {
-                                alert('Función recopilarYMostrarCombates no encontrada.');
+                                buttonsContainer.style.pointerEvents = '';
+                                buttonsContainer.style.opacity = '1';
+                            })
+                            .catch(err => {
+                                alert(err.message || 'Error al cargar datos de combate.');
+                                console.error(err);
+                            })
+                            .finally(() => {
                                 buttonsContainer.style.display = 'flex';
                                 buttonsContainer.style.pointerEvents = '';
                                 buttonsContainer.style.opacity = '1';
                                 mensajeCarga.style.display = 'none';
-                            }
-                        }
-
-                        if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
-                            const script = document.createElement('script');
-                            script.src = scriptUrl;
-                            script.onload = iniciarCarga;
-                            script.onerror = () => {
-                                alert('Error al cargar cargarDatosCombate.js');
-                                buttonsContainer.style.display = 'flex';
-                                buttonsContainer.style.pointerEvents = '';
-                                buttonsContainer.style.opacity = '1';
-                                mensajeCarga.style.display = 'none';
-                            };
-                            document.body.appendChild(script);
-                        } else {
-                            iniciarCarga();
-                        }
+                            });
                     }
-                    // Aquí puedes añadir manejo para otros botones si quieres
                 });
                 buttonsContainer.appendChild(btn);
             });
@@ -257,7 +252,8 @@
                     acceptBtn.textContent = 'Cerrar';
                     acceptBtn.style.backgroundColor = '#cc3333';
 
-                    // Si quieres que al pulsar aceptar se haga algo más, añádelo aquí.
+                    mensajeCarga.style.display = 'none';
+                    tablaDatos.style.display = 'none';
                 } else {
                     alert('Introduce un ID válido');
                 }
@@ -266,8 +262,28 @@
 
             modal.appendChild(modalContent);
             document.body.appendChild(modal);
+
+            window._modalBuscarID = {
+                modal,
+                inputId,
+                buttonsContainer,
+                acceptBtn,
+                mensajeCarga,
+                tablaDatos
+            };
         }
 
+        const { modal, inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
+
+        // Reset estado del modal cada vez que se abre
         modal.style.display = 'flex';
+        inputId.value = '';
+        buttonsContainer.style.display = 'none';
+        buttonsContainer.style.pointerEvents = '';
+        buttonsContainer.style.opacity = '1';
+        mensajeCarga.style.display = 'none';
+        tablaDatos.style.display = 'none';
+        acceptBtn.textContent = 'Aceptar';
+        acceptBtn.style.backgroundColor = '#007acc';
     };
 })();
