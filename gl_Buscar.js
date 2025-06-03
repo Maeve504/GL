@@ -25,6 +25,8 @@
                 padding: '30px 40px',
                 borderRadius: '12px',
                 minWidth: '360px',
+                maxHeight: '80vh',
+                overflowY: 'auto',
                 color: '#e0e0e0',
                 boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
                 position: 'relative'
@@ -86,6 +88,33 @@
             });
             modalContent.appendChild(buttonsContainer);
 
+            // Crear contenedor para mensaje de carga y tabla (vacío al inicio)
+            const mensajeCarga = document.createElement('div');
+            mensajeCarga.id = 'mensajeCarga';
+            Object.assign(mensajeCarga.style, {
+                color: '#eee',
+                fontSize: '18px',
+                textAlign: 'center',
+                marginBottom: '15px',
+                display: 'none'
+            });
+            modalContent.appendChild(mensajeCarga);
+
+            const tablaDatos = document.createElement('table');
+            tablaDatos.id = 'tablaDatos';
+            Object.assign(tablaDatos.style, {
+                width: '100%',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                display: 'none',
+                backgroundColor: '#222',
+                color: '#eee',
+                borderCollapse: 'collapse',
+                marginTop: '10px',
+                tableLayout: 'fixed'
+            });
+            modalContent.appendChild(tablaDatos);
+
             const names = ['Arena', 'CT', 'Expedición', 'Mazmorra', 'All'];
             names.forEach(name => {
                 const btn = document.createElement('button');
@@ -108,6 +137,7 @@
                     btn.style.backgroundColor = '#333';
                     btn.style.color = '#ccc';
                 });
+
                 btn.addEventListener('click', () => {
                     const idValue = inputId.value.trim();
                     if (!idValue) {
@@ -118,46 +148,68 @@
                     console.log(`Botón pulsado: ${name}, ID: ${idValue}`);
 
                     if (name === 'Arena') {
+                        buttonsContainer.style.display = 'none';
+                        mensajeCarga.style.display = 'block';
+                        tablaDatos.style.display = 'none';
+                        mensajeCarga.textContent = 'Cargando... 0%';
+
                         const scriptUrl = 'https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js';
+
+                        function iniciarCarga() {
+                            if (typeof window.buscarCombatePorIDConProgreso === 'function') {
+                                window.buscarCombatePorIDConProgreso(idValue, 2, (progreso) => {
+                                    mensajeCarga.textContent = `Cargando... ${progreso}%`;
+                                }).then((horas) => {
+                                    mensajeCarga.textContent = `Carga finalizada. ${horas.length} registros encontrados.`;
+                                    tablaDatos.style.display = 'table';
+
+                                    // Construir tabla
+                                    tablaDatos.innerHTML = '';
+                                    const thead = document.createElement('thead');
+                                    thead.innerHTML = `<tr>
+                                        <th style="border: 1px solid #444; padding: 6px; width: 10%;">#</th>
+                                        <th style="border: 1px solid #444; padding: 6px;">Hora</th>
+                                    </tr>`;
+                                    tablaDatos.appendChild(thead);
+
+                                    const tbody = document.createElement('tbody');
+                                    horas.forEach((hora, i) => {
+                                        const fila = document.createElement('tr');
+                                        fila.innerHTML = `
+                                            <td style="border: 1px solid #444; padding: 6px; text-align: center;">${i + 1}</td>
+                                            <td style="border: 1px solid #444; padding: 6px; word-break: break-word;">${hora}</td>
+                                        `;
+                                        tbody.appendChild(fila);
+                                    });
+                                    tablaDatos.appendChild(tbody);
+                                }).catch(err => {
+                                    alert('Error al cargar datos de combate.');
+                                    console.error(err);
+                                    buttonsContainer.style.display = 'flex';
+                                    mensajeCarga.style.display = 'none';
+                                });
+                            } else {
+                                alert('Función buscarCombatePorIDConProgreso no encontrada.');
+                                buttonsContainer.style.display = 'flex';
+                                mensajeCarga.style.display = 'none';
+                            }
+                        }
 
                         if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
                             const script = document.createElement('script');
                             script.src = scriptUrl;
-
-                            script.onload = () => {
-                                if (typeof window.buscarCombatePorID === 'function') {
-                                    window.buscarCombatePorID(idValue).then(horas => {
-                                        alert(`Se cargaron ${horas.length} registros de horas.`);
-                                        console.log(horas);
-                                    }).catch(err => {
-                                        alert('Error al cargar datos de combate.');
-                                        console.error(err);
-                                    });
-                                } else {
-                                    alert('Función buscarCombatePorID no encontrada.');
-                                }
-                            };
-
+                            script.onload = iniciarCarga;
                             script.onerror = () => {
                                 alert('Error al cargar cargarDatosCombate.js');
+                                buttonsContainer.style.display = 'flex';
+                                mensajeCarga.style.display = 'none';
                             };
-
                             document.body.appendChild(script);
                         } else {
-                            if (typeof window.buscarCombatePorID === 'function') {
-                                window.buscarCombatePorID(idValue).then(horas => {
-                                    alert(`Se cargaron ${horas.length} registros de horas.`);
-                                    console.log(horas);
-                                }).catch(err => {
-                                    alert('Error al cargar datos de combate.');
-                                    console.error(err);
-                                });
-                            } else {
-                                alert('Función buscarCombatePorID no encontrada.');
-                            }
+                            iniciarCarga();
                         }
                     }
-                    // Aquí podrías añadir else if para CT, Expedición, etc.
+                    // Aquí puedes añadir más condiciones para CT, Expedición, Mazmorra, All
                 });
                 buttonsContainer.appendChild(btn);
             });
@@ -191,6 +243,10 @@
                     buttonsContainer.style.display = 'flex';
                     acceptBtn.textContent = 'Cerrar';
                     acceptBtn.style.backgroundColor = '#cc3333';
+
+                    // Al abrir botones, ocultar mensaje y tabla si hay
+                    mensajeCarga.style.display = 'none';
+                    tablaDatos.style.display = 'none';
                 }
             });
             modalContent.appendChild(acceptBtn);
@@ -202,17 +258,20 @@
                 modal,
                 inputId,
                 buttonsContainer,
-                acceptBtn
+                acceptBtn,
+                mensajeCarga,
+                tablaDatos
             };
         } else {
             modal.style.display = 'flex';
         }
 
-        const { inputId, buttonsContainer, acceptBtn } = window._modalBuscarID;
+        const { inputId, buttonsContainer, acceptBtn, mensajeCarga, tablaDatos } = window._modalBuscarID;
         inputId.value = '';
         buttonsContainer.style.display = 'none';
+        mensajeCarga.style.display = 'none';
+        tablaDatos.style.display = 'none';
         acceptBtn.textContent = 'Aceptar';
         acceptBtn.style.backgroundColor = '#007acc';
-        inputId.focus();
     };
 })();
