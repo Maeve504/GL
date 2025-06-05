@@ -1,576 +1,439 @@
 // ==UserScript==
-// @name         Menú Administración con Multicuentas persistente
-// @namespace    http://tampermonkey.net/
-// @version      1.14
-// @description  Menú fijo con imagen, texto más grande y fondo oscuro para administración en Gladiatus con modal Multicuentas persistente
-// @match        https://s55-es.gladiatus.gameforge.com/admin*
-// @require      https://raw.githubusercontent.com/Maeve504/GL/main/gl_Buscar.js
-// @require      https://raw.githubusercontent.com/Maeve504/GL/main/cargarDatosCombate.js
-// @grant        GM_setClipboard
-// @grant        GM.setClipboard
+// @name         Analizar y cargar tablas siguientes en CombatLog
+// @namespace    https://tu.namespace.aqui
+// @version      2.0
+// @description  Carga todas las páginas, analiza duración entre ataques y detecta actividad de bots con modal mejorado y herramientas de reporte.
+// @author       Tú
+// @match        https://s*-*.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog*
+// @include      https://s*-*.gladiatus.gameforge.com/admin/index.php?action=module&modName=CombatLog*
+// @grant        none
 // ==/UserScript==
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Menú Administración
+
 (function () {
-    'use strict';
+  'use strict';
 
-    const imagenURL = 'https://lh3.googleusercontent.com/d/1sOAO-EyVW_jrAwtepM1h2EXEctZ7hxox';
+  let resultadoMensaje = '';
 
-    const estilo = document.createElement('style');
-    estilo.textContent = `
-    #menuAdminFixed {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    font-family: Arial, sans-serif;
-}
-
-#menuAdminFixed .boton-principal {
-    display: flex;
-    align-items: center;
-    background: #333;
-    border: 2px solid #222;
-    border-radius: 10px;
-    padding: 6px 12px;
-    cursor: pointer;
-    position: relative;
-    min-width: 190px;
-    box-sizing: border-box;
-    transition: border-color 0.3s;
-}
-
-#menuAdminFixed .boton-principal:hover {
-    border-color: #FFC300;
+  function copyStyles(sourceElement, targetElement) {
+    const computed = window.getComputedStyle(sourceElement);
+    for (let prop of computed) {
+      try {
+        targetElement.style[prop] = computed.getPropertyValue(prop);
+      } catch {}
     }
+    targetElement.style.cursor = 'pointer';
+    targetElement.style.display = 'inline-block';
+  }
 
-    #menuAdminFixed .icono {
-        width: 40px;
-        height: 40px;
-        background-image: url('${imagenURL}');
-        background-size: cover;
-        background-position: center;
-        margin-right: 10px;
-        flex-shrink: 0;
+  function mostrarModal(mensaje) {
+  const fondo = document.createElement('div');
+  fondo.style.position = 'fixed';
+  fondo.style.top = 0;
+  fondo.style.left = 0;
+  fondo.style.width = '100vw';
+  fondo.style.height = '100vh';
+  fondo.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  fondo.style.display = 'flex';
+  fondo.style.justifyContent = 'center';
+  fondo.style.alignItems = 'center';
+  fondo.style.zIndex = 9999;
+
+  const modal = document.createElement('div');
+  modal.style.backgroundColor = '#d3d3d3';
+  modal.style.padding = '30px 35px';
+  modal.style.border = '2px solid #525252';
+  modal.style.borderRadius = '10px';
+  modal.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+  modal.style.minWidth = '600px';
+  modal.style.fontFamily = 'Segoe UI, sans-serif';
+  modal.style.position = 'relative';
+  modal.style.color = '#333';
+
+  // Botón cerrar X
+  const cerrarX = document.createElement('div');
+  cerrarX.textContent = '×';
+  cerrarX.style.position = 'absolute';
+  cerrarX.style.top = '10px';
+  cerrarX.style.right = '10px';
+  cerrarX.style.width = '28px';
+  cerrarX.style.height = '28px';
+  cerrarX.style.borderRadius = '50%';
+  cerrarX.style.backgroundColor = '#999';
+  cerrarX.style.color = 'white';
+  cerrarX.style.display = 'flex';
+  cerrarX.style.justifyContent = 'center';
+  cerrarX.style.alignItems = 'center';
+  cerrarX.style.fontSize = '20px';
+  cerrarX.style.fontWeight = 'bold';
+  cerrarX.style.cursor = 'pointer';
+  cerrarX.title = 'Cerrar';
+  cerrarX.addEventListener('click', () => {
+    document.body.removeChild(fondo);
+  });
+
+  // Título modal
+  const titulo = document.createElement('h2');
+  titulo.textContent = 'Gestión de bots';
+  titulo.style.fontSize = '24px';
+  titulo.style.color = '#616064';
+  titulo.style.marginTop = 0;
+  titulo.style.marginBottom = '10px';
+
+  // Separador
+  const separador = document.createElement('hr');
+  separador.style.border = '0';
+  separador.style.borderTop = '1px solid #999';
+  separador.style.marginBottom = '20px';
+
+  // Contenido mensaje principal (HTML)
+  const contenido = document.createElement('div');
+  contenido.innerHTML = mensaje;
+  contenido.style.fontSize = '16px';
+  contenido.style.lineHeight = '1.5';
+  contenido.style.marginBottom = '20px';
+
+  modal.appendChild(cerrarX);
+  modal.appendChild(titulo);
+  modal.appendChild(separador);
+  modal.appendChild(contenido);
+
+  // --- Subtítulo Nota interna (Recurrencia)
+  const notaInterna = document.createElement('h3');
+  notaInterna.textContent = 'Nota interna (Recurrencia):';
+  notaInterna.style.fontSize = '18px';
+  notaInterna.style.color = '#444';
+  notaInterna.style.marginTop = '10px';
+  notaInterna.style.marginBottom = '6px';
+  modal.appendChild(notaInterna);
+
+  // Línea horizontal debajo de subtítulo nota interna
+  const lineaNota = document.createElement('hr');
+  lineaNota.style.border = '0';
+  lineaNota.style.borderTop = '1px solid #999';
+  lineaNota.style.marginBottom = '15px';
+  modal.appendChild(lineaNota);
+
+  // --- Línea con Ticket ID, 2 selects y botón generar
+  const lineaControles = document.createElement('div');
+  lineaControles.style.display = 'flex';
+  lineaControles.style.alignItems = 'center';
+  lineaControles.style.gap = '10px';
+
+  // Ticket ID input (menos ancho)
+  const ticketIDInput = document.createElement('input');
+  ticketIDInput.type = 'text';
+  ticketIDInput.placeholder = 'Ticket ID';
+  ticketIDInput.style.flex = '0 0 150px'; // ancho fijo 150px
+  ticketIDInput.style.padding = '5px 8px';
+  ticketIDInput.style.border = '1px solid #888';
+  ticketIDInput.style.borderRadius = '5px';
+
+  // Select 1
+  const select1 = document.createElement('select');
+  ['Expedition', 'Circus Turma', 'Arena', 'Dungeon'].forEach(text => {
+    const opt = document.createElement('option');
+    opt.value = text;
+    opt.textContent = text;
+    select1.appendChild(opt);
+  });
+  select1.style.padding = '5px 8px';
+  select1.style.borderRadius = '5px';
+  select1.style.border = '1px solid #555';
+  select1.style.backgroundColor = '#f5f5f5';
+
+  // Select 2
+  const select2 = document.createElement('select');
+  ['1ra infracción', '2da infracción', '3ra infracción', '4ta infracción'].forEach(text => {
+    const opt = document.createElement('option');
+    opt.value = text;
+    opt.textContent = text;
+    select2.appendChild(opt);
+  });
+  select2.style.padding = '5px 8px';
+  select2.style.borderRadius = '5px';
+  select2.style.border = '1px solid #555';
+  select2.style.backgroundColor = '#f5f5f5';
+
+  // Botón generar
+  const generarBtn = document.createElement('button');
+  generarBtn.textContent = 'Generar';
+  generarBtn.style.padding = '8px 12px';
+  generarBtn.style.backgroundColor = '#444';
+  generarBtn.style.color = 'white';
+  generarBtn.style.border = 'none';
+  generarBtn.style.borderRadius = '5px';
+  generarBtn.style.cursor = 'pointer';
+
+  // Agregar controles a la línea
+  lineaControles.appendChild(ticketIDInput);
+  lineaControles.appendChild(select1);
+  lineaControles.appendChild(select2);
+  lineaControles.appendChild(generarBtn);
+  modal.appendChild(lineaControles);
+
+  // --- Función para extraer datos del texto del modal ---
+  function extraerDatos() {
+    // Buscar texto con total de tiempo, ej:
+    // "Se ha detectado un total de 120 horas, 53 minutos y 59 segundos sin pausas."
+    const regexTiempo = /total de (\d+)\s*horas?,\s*(\d+)\s*minutos?\s*y\s*(\d+)\s*segundos?/i;
+    // Buscar inicio y fin:
+    const regexInicio = /Inicio:\s*(.+)/i;
+    const regexFin = /Fin:\s*(.+)/i;
+
+    const texto = contenido.textContent;
+
+    const matchTiempo = texto.match(regexTiempo);
+    const matchInicio = texto.match(regexInicio);
+    const matchFin = texto.match(regexFin);
+
+    if (!matchTiempo || !matchInicio || !matchFin) return null;
+
+    const horas = matchTiempo[1];
+    const minutos = matchTiempo[2];
+    const segundos = matchTiempo[3];
+    const inicio = matchInicio[1].trim();
+    const fin = matchFin[1].trim();
+
+    return { horas, minutos, segundos, inicio, fin };
+  }
+
+  // --- Función para obtener texto infracción según select ---
+  function textoInfraccion(infraccion) {
+    switch (infraccion) {
+      case '1ra infracción':
+        return 'Issued a 1st offense for scripting (7 days).';
+      case '2da infracción':
+        return 'Issued a 2nd offense for scripting (14 days).';
+      case '3ra infracción':
+        return 'Issued a 3rd offense for scripting (30 days).';
+      case '4ta infracción':
+        return 'Issued a 4th offense for scripting (PERMABAN). Approved by CM Daveius';
+      default:
+        return '';
     }
+  }
 
-    #menuAdminFixed .texto {
-        font-size: 16px;
-        color: #fff;
-        white-space: nowrap;
-        font-weight: bold;
-    }
+  // --- Evento botón generar ---
+  generarBtn.addEventListener('click', () => {
+  const datos = extraerDatos();
 
-    #menuAdminFixed .submenu {
-        display: none;
-        flex-direction: column;
-        background: #444;
-        border: 2px solid #222;
-        padding: 6px 0;
-        margin-top: 8px;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-        min-width: 190px;
-        width: 190px;
-        box-sizing: border-box;
-    }
+  if (!datos) {
+    alert('No se pudieron extraer los datos necesarios del mensaje.');
+    return;
+  }
 
-    #menuAdminFixed:hover .submenu {
-        display: flex;
-    }
+  const { horas, minutos, segundos, inicio, fin } = datos;
+  const ticketID = ticketIDInput.value.trim();
+  const tipo = select1.value;
+  const infraccion = select2.value;
 
-    #menuAdminFixed .submenu a,
-#menuAdminFixed .submenu button {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    text-decoration: none;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: #ccc;
-    border-radius: 4px;
-    transition: background 0.2s;
-    width: 100%;
-    box-sizing: border-box;
-}
+  const duracion = `${horas}h ${minutos}m ${segundos}s`;
 
-#menuAdminFixed .submenu a:hover,
-#menuAdminFixed .submenu button:hover {
-    background: #444;
-    color: #fff;
-}
+  // Línea Ticket ID en propia línea si existe
+  const ticketLinea = ticketID ? `[Ticket-ID: ${ticketID}]\n` : '';
 
-#menuAdminFixed .submenu a.active,
-#menuAdminFixed .submenu button.active {
-    background-color: #FFC300;
-    color: #000;
-}
+  const resultado = `${ticketLinea}After checking the ${tipo} logs, I found the following activity:\n\n • ${inicio} » ${fin} (${duracion})\n\n${textoInfraccion(infraccion)}`;
 
-#menuAdminFixed .submenu a svg,
-#menuAdminFixed .submenu button svg {
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
-    flex-shrink: 0;
-}
+  navigator.clipboard.writeText(resultado).then(() => {
+    generarBtn.textContent = 'Generado';
+    generarBtn.style.backgroundColor = 'green';
 
-
-    html, body {
-        overflow-x: hidden !important;
-    }
-    `;
-    document.head.appendChild(estilo);
-
-    const iconosSVG = {
-        casa: `
-        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
-        multicuentas: `
-        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5s-3 1.34-3 3 1.34 3 3 3zm0 2c-2 0-6 1-6 3v2h12v-2c0-2-4-3-6-3zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45v2h6v-2c0-2-4-3-6-3z"/></svg>`,
-        lupa: `
-        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM10 14a4 4 0 110-8 4 4 0 010 8z"/></svg>`
-    };
-
-    const menu = document.createElement('div');
-    menu.id = 'menuAdminFixed';
-    menu.innerHTML = `
-        <div class="boton-principal">
-            <div class="icono"></div>
-            <div class="texto">Administración</div>
-        </div>
-        <div class="submenu">
-            <a href="https://s55-es.gladiatus.gameforge.com/admin/index.php?action=start">${iconosSVG.casa}Página principal</a>
-            <a href="#" id="linkMultis">${iconosSVG.multicuentas}Multicuentas</a>
-            <button id="btnBuscarUsuario">${iconosSVG.lupa}Buscar usuario</button>
-            <a href="https://s55-es.gladiatus.gameforge.com/admin/index.php?action=module&modName=Warnings">${iconosSVG.lupa}Advertencias</a>
-        </div>
-    `;
-    document.body.appendChild(menu);
-
-    let multisCargado = false;
-
-    function cargarMultis(callback) {
-        if (multisCargado) {
-            if (callback) callback();
-            return;
-        }
-
-                multisCargado = true;
-                if (callback) callback();
-
-
-    }
-
-    function abrirModalMultis() {
-        if (typeof abrirModalMulticuentas === 'function') {
-            abrirModalMulticuentas();
-        } else {
-            console.warn('Función abrirModalMulticuentas no encontrada.');
-        }
-    }
-
-    function activarOpcion(opcion) {
-        const opciones = menu.querySelectorAll('.submenu a, .submenu button');
-        const botonPrincipal = menu.querySelector('.boton-principal');
-        opciones.forEach(o => o.classList.remove('active'));
-        opcion.classList.add('active');
-        botonPrincipal.classList.add('active');
-    }
-
-    function desactivarOpcion() {
-    const activos = menu.querySelectorAll('.submenu .active');
-    activos.forEach(a => a.classList.remove('active'));
-
-    // También limpia el botón principal
-    menu.querySelector('.boton-principal')?.classList.remove('active');
-
-}
-
-    // Clic en Multicuentas
-    document.getElementById('linkMultis').addEventListener('click', function(e) {
-    e.preventDefault();
-    desactivarOpcion(); // Limpia estados previos
-    sessionStorage.setItem('multisAbierto', 'true');
-
-    cargarMultis(() => {
-        abrirModalMultis();
-        activarOpcion(this);
-    });
+    // Opcional: después de 3 segundos volver a estado original
+    setTimeout(() => {
+      generarBtn.textContent = 'Generar';
+      generarBtn.style.backgroundColor = '#444';
+    }, 3000);
+  });
 });
 
 
-    document.getElementById('btnBuscarUsuario').addEventListener('click', function(e) {
-        e.preventDefault();
-        if (typeof abrirModalID === "function") {
-            abrirModalID();
-            activarOpcion(this);
+  fondo.appendChild(modal);
+  document.body.appendChild(fondo);
+}
 
-            // Forzar blur para que no quede amarillo
-            setTimeout(() => {
-                this.blur();
-            }, 100);
-        } else {
-            alert("No se ha cargado el modal de búsqueda.");
-        }
+
+
+
+
+
+  function addAnalizarButton() {
+    const form = document.querySelector('form[name="searchForm"]');
+    if (!form) return false;
+
+    const submitBtn = form.querySelector('input[type="submit"]#submit');
+    if (!submitBtn) return false;
+
+    if (document.getElementById('btnAnalizar')) return true;
+
+    const analizarBtn = document.createElement('input');
+    analizarBtn.type = 'button';
+    analizarBtn.value = 'Analizar';
+    analizarBtn.id = 'btnAnalizar';
+    copyStyles(submitBtn, analizarBtn);
+    analizarBtn.style.marginLeft = '8px';
+    submitBtn.parentNode.insertBefore(analizarBtn, submitBtn.nextSibling);
+
+    const resultadosBtn = document.createElement('input');
+    resultadosBtn.type = 'button';
+    resultadosBtn.value = 'Resultados';
+    resultadosBtn.id = 'btnResultados';
+    copyStyles(submitBtn, resultadosBtn);
+    resultadosBtn.style.marginLeft = '8px';
+    resultadosBtn.disabled = true;
+    submitBtn.parentNode.insertBefore(resultadosBtn, analizarBtn.nextSibling);
+
+    resultadosBtn.addEventListener('click', () => {
+      if (resultadoMensaje) mostrarModal(resultadoMensaje);
     });
 
-    const opcionesEnlaces = menu.querySelectorAll('.submenu a:not(#linkMultis)');
-    opcionesEnlaces.forEach(opc => {
-        opc.addEventListener('click', function() {
-            activarOpcion(this);
+    analizarBtn.addEventListener('click', async () => {
+      analizarBtn.disabled = true;
+      analizarBtn.value = 'Cargando...';
 
-            // Forzar blur para que no quede amarillo
-            setTimeout(() => {
-                this.blur();
-            }, 100);
-        });
+      const tabla = document.querySelector('table');
+      if (!tabla) return;
+
+      function encontrarSiguiente(doc = document) {
+        return Array.from(doc.querySelectorAll('a')).find(a => a.textContent.trim() === 'Siguiente »');
+      }
+
+      async function cargarSiguiente(url) {
+        const response = await fetch(url, { credentials: 'same-origin' });
+        const text = await response.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        const nuevaTabla = doc.querySelector('table');
+        if (!nuevaTabla) return;
+        const filasNuevas = Array.from(nuevaTabla.querySelectorAll('tbody tr')).slice(1);
+        const tbodyActual = tabla.querySelector('tbody') || tabla;
+        filasNuevas.forEach(fila => tbodyActual.appendChild(fila));
+        const siguienteEnlace = encontrarSiguiente(doc);
+        if (siguienteEnlace) await cargarSiguiente(siguienteEnlace.href);
+      }
+
+      const siguiente = encontrarSiguiente();
+      if (siguiente) await cargarSiguiente(siguiente.href);
+
+      const tbody = tabla.querySelector('tbody') || tabla;
+      const filas = Array.from(tbody.querySelectorAll('tr'));
+      if (filas.length === 0) return;
+
+      const thead = tabla.querySelector('thead');
+      if (thead && !thead.querySelector('th:first-child').textContent.includes("Duración")) {
+        const th = document.createElement('th');
+        th.textContent = 'Duración';
+        thead.querySelector('tr').insertBefore(th, thead.querySelector('tr').firstChild);
+      }
+
+      function parseFechaHora(texto) {
+        const partes = texto.split(' - ');
+        if (partes.length !== 2) return null;
+        const fechaStr = partes[0].replace(/^[^,]*, /, '');
+        const horaStr = partes[1];
+        const [dd, mm, yyyy] = fechaStr.split('.');
+        return new Date(`${yyyy}-${mm}-${dd}T${horaStr}`);
+      }
+
+      for (let i = 0; i < filas.length; i++) {
+        const tdDur = document.createElement('td');
+        filas[i].insertBefore(tdDur, filas[i].firstChild);
+      }
+
+      let acumulado = 0, mejorAcumulado = 0;
+      let secuenciaInicio = null, secuenciaFin = null;
+      let mejorInicio = null, mejorFin = null;
+      let filaInicio = null, filaFin = null;
+      let mejorFilaInicio = null, mejorFilaFin = null;
+
+      for (let i = filas.length - 1; i > 0; i--) {
+        const filaActual = filas[i];
+        const filaAnterior = filas[i - 1];
+        const celdaHoraActual = filaActual.querySelector('td:nth-child(2)');
+        const celdaHoraAnterior = filaAnterior.querySelector('td:nth-child(2)');
+        if (!celdaHoraActual || !celdaHoraAnterior) continue;
+
+        const fecha1 = parseFechaHora(celdaHoraActual.textContent.trim());
+        const fecha2 = parseFechaHora(celdaHoraAnterior.textContent.trim());
+        if (!fecha1 || !fecha2) continue;
+
+        let diff = (fecha2 - fecha1) / 1000;
+        if (diff < 0) diff = 0;
+
+        const tdDur = filaAnterior.querySelector('td:first-child');
+        const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+        const s = String(Math.floor(diff % 60)).padStart(2, '0');
+        tdDur.textContent = `${h}:${m}:${s}`;
+
+        if (diff > 2400) {
+          tdDur.style.backgroundColor = 'red';
+          tdDur.style.color = 'yellow';
+          tdDur.style.fontWeight = 'bold';
+        }
+
+        if (diff >= 3600) {
+          if (acumulado > mejorAcumulado) {
+            mejorAcumulado = acumulado;
+            mejorInicio = secuenciaInicio;
+            mejorFin = secuenciaFin;
+            mejorFilaInicio = filaInicio;
+            mejorFilaFin = filaFin;
+          }
+          acumulado = 0;
+          secuenciaInicio = null;
+          filaInicio = null;
+          continue;
+        }
+
+        if (acumulado === 0) {
+          secuenciaInicio = fecha1;
+          filaInicio = celdaHoraActual.textContent.trim();
+        }
+
+        acumulado += diff;
+        secuenciaFin = fecha2;
+        filaFin = celdaHoraAnterior.textContent.trim();
+      }
+
+      if (acumulado > mejorAcumulado) {
+        mejorAcumulado = acumulado;
+        mejorInicio = secuenciaInicio;
+        mejorFin = secuenciaFin;
+        mejorFilaInicio = filaInicio;
+        mejorFilaFin = filaFin;
+      }
+
+      if (mejorAcumulado >= 129600) {
+  const h = Math.floor(mejorAcumulado / 3600);
+  const m = Math.floor((mejorAcumulado % 3600) / 60);
+  const s = mejorAcumulado % 60;
+
+  resultadoMensaje = `
+  <strong style="color:red; font-size: 18px;">⛔ ¡El usuario está utilizando software externo!</strong><br><br>
+  Se ha detectado un total de <strong>${h} horas, ${m} minutos y ${s} segundos</strong> sin pausas.<br><br>
+  <strong>Inicio:</strong> ${mejorFilaInicio}<br>
+  <strong>Fin:</strong> ${mejorFilaFin}
+`;
+
+} else {
+  resultadoMensaje = `
+  <strong style="color:green; font-size: 18px;">✅ ¡No hay actividad sospechosa!</strong><br><br>`;
+}
+
+
+      mostrarModal(resultadoMensaje);
+      resultadosBtn.disabled = false;
+      analizarBtn.disabled = false;
+      analizarBtn.value = 'Analizar';
     });
 
-    // Verificar persistencia para abrir modal si estaba abierto
-    if (sessionStorage.getItem('multisAbierto') === 'true') {
-        cargarMultis(() => {
-            abrirModalMultis();
-            activarOpcion(document.getElementById('linkMultis'));
+    return true;
+  }
 
-            // Forzar blur para que no quede amarillo al abrir automático
-            setTimeout(() => {
-                document.getElementById('linkMultis').blur();
-            }, 100);
-        });
-    }
-
-    // Escuchar cierre del modal para limpiar flag y desactivar menú
-    document.body.addEventListener('click', (e) => {
-    if (e.target.matches('.closeModalMultis, #cerrarMultis')) {
-        sessionStorage.removeItem('multisAbierto');
-        desactivarOpcion();
-        cerrarModalMultis();
-    }
-});
-
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Multicuentas
-   (function () {
-    'use strict';
-
-    if (window.multiModalCreated) return;
-    window.multiModalCreated = true;
-
-    const storageKey = 'gestionMulticuentasDatos';
-    const modalStateKey = 'gestionMulticuentasAbierto';
-
-    let modal = null;
-
-    // Función que crea el modal y lo añade al DOM
-    function crearModal() {
-        if (modal) return; // Ya existe
-        modal = document.createElement('div');
-        modal.id = 'multiModal';
-        modal.style.position = 'fixed';
-        modal.style.top = '100px';
-        modal.style.left = '100px';
-        modal.style.width = '500px';
-        modal.style.backgroundColor = '#e0e0e0';
-        modal.style.border = '2px solid #444';
-        modal.style.zIndex = '9999';
-        modal.style.padding = '15px';
-        modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-        modal.style.borderRadius = '10px';
-        modal.style.cursor = 'move';
-        modal.style.fontFamily = 'Arial, sans-serif';
-
-        modal.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0; font-size:24px;">Gestión de multicuentas</h2>
-                <span id="cerrarModal" style="cursor:pointer; font-weight:bold;">❌</span>
-            </div>
-            <hr>
-
-            <div style="margin-bottom:10px;">
-                <label style="color:#222; font-weight:bold; display:block; width:100%;">IDs (separadas por coma):</label>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <input type="text" id="idsInput" style="flex:1; padding:5px;">
-                    <button id="detectarBtn" style="padding:6px 12px;">Detectar</button>
-                </div>
-            </div>
-
-            <div style="margin-bottom:10px;">
-                <label style="color:#222; font-weight:bold; display:block; width:100%;">Nota interna (recurrencia):</label>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <select id="infraccionSelect" style="flex:1; padding:5px;">
-                        <option value="1">1ra Infracción</option>
-                        <option value="2">2da Infracción</option>
-                        <option value="3">3ra Infracción</option>
-                        <option value="4">4ta Infracción</option>
-                        <option value="5">5ta Infracción</option>
-                    </select>
-                    <button id="generarBtn" style="padding:6px 12px;">Generar</button>
-                </div>
-            </div>
-
-            <div style="margin-bottom:10px;">
-                <label style="color:#222; font-weight:bold; display:block; width:100%;">Aviso al jugador:</label>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <select id="idiomaSelect" style="flex:1; padding:5px;">
-                        <option value="es">Español</option>
-                        <option value="en">English</option>
-                        <option value="fr">Français</option>
-                    </select>
-                    <button id="advertenciaBtn" style="padding:6px 12px;">Generar</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // Cargar datos guardados
-        cargarTodosDatos();
-
-        // Eventos del modal (cerrar, arrastrar, botones)
-        document.getElementById('cerrarModal').addEventListener('click', () => {
-            modal.remove();
-            modal = null;
-            localStorage.removeItem(storageKey);
-            localStorage.setItem(modalStateKey, 'cerrado');
-        });
-
-        // Drag
-        let isDragging = false;
-        let offsetX, offsetY;
-        modal.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            offsetX = e.clientX - modal.getBoundingClientRect().left;
-            offsetY = e.clientY - modal.getBoundingClientRect().top;
-        });
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                modal.style.left = (e.clientX - offsetX) + 'px';
-                modal.style.top = (e.clientY - offsetY) + 'px';
-            }
-        });
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                guardarTodosDatos();
-            }
-        });
-
-        // Botones Detectar, Generar y Advertencia: reusar tus funciones y eventos aquí
-        // ... (añade aquí el resto de tus event listeners como en tu código original)
-
-        // Copiar feedback
-        function mostrarFeedback(boton, texto = 'Copiado') {
-            const textoOriginal = boton.textContent;
-            boton.textContent = texto;
-            boton.style.background = '#4CAF50';
-            setTimeout(() => {
-                boton.textContent = textoOriginal;
-                boton.style.background = '';
-            }, 2000);
-        }
-
-        // Botón DETECTAR
-        document.getElementById('detectarBtn').addEventListener('click', () => {
-            const btn = document.getElementById('detectarBtn');
-            const table = document.getElementById('userList');
-            if (!table) {
-                alert('No se encontró la tabla con id="userList".');
-                return;
-            }
-
-            // Buscar fila con encabezados
-            let headerRow = null;
-            const thead = table.querySelector('thead');
-            if (thead) {
-                headerRow = thead.querySelector('tr');
-            }
-            if (!headerRow) {
-                const rows = table.querySelectorAll('tr');
-                for (const row of rows) {
-                    if (row.querySelector('th')) {
-                        headerRow = row;
-                        break;
-                    }
-                }
-            }
-
-            if (!headerRow) {
-                alert('No se encontró ninguna fila con encabezados (<th>) en la tabla.');
-                return;
-            }
-
-            const ths = headerRow.querySelectorAll('th');
-            let idCol = -1;
-            for (let i = 0; i < ths.length; i++) {
-                const textoNorm = ths[i].textContent.toLowerCase().replace(/\s+/g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                if (textoNorm === 'iddeljugador') {
-                    idCol = i;
-                    break;
-                }
-            }
-
-            if (idCol === -1) {
-                alert('No se encontró la columna "ID del Jugador".');
-                return;
-            }
-
-            const ids = [];
-            const dataRows = table.querySelectorAll('tr');
-            for (const row of dataRows) {
-                const tds = row.querySelectorAll('td');
-                if (tds.length > idCol) {
-                    const id = tds[idCol].textContent.trim();
-                    if (id && !isNaN(id) && id !== '0') {
-                        ids.push(id);
-                    }
-                }
-            }
-
-            if (ids.length === 0) {
-                alert('No se encontraron IDs en la columna "ID del Jugador".');
-                return;
-            }
-
-            document.getElementById('idsInput').value = ids.join(', ');
-            guardarTodosDatos();
-            mostrarFeedback(btn, 'Añadidas');
-        });
-
-        // Botón GENERAR nota interna
-        document.getElementById('generarBtn').addEventListener('click', () => {
-            const btn = document.getElementById('generarBtn');
-            const ids = document.getElementById('idsInput').value.split(',').map(s => s.trim()).filter(Boolean).join(', ');
-            const nivel = parseInt(document.getElementById('infraccionSelect').value);
-            let texto = `Multi accounts found: [${ids}]\n\n`;
-
-            const sanciones = {
-                1: "Issued 1st offense for unannounced multies (Warning).",
-                2: "Issued 2nd offense for unannounced multies (3 days).",
-                3: "Issued 3rd offense for unannounced multies (5 days).",
-                4: "Issued 4th offense for unannounced multies (7 days).",
-                5: "Issued 5th offense for unannounced multies (14 days)."
-            };
-
-            texto += `${sanciones[nivel]}\nLinked by the support team.`;
-
-            GM_setClipboard(texto);
-
-            mostrarFeedback(btn);
-            guardarTodosDatos();
-        });
-
-        // Botón ADVERTENCIA
-        document.getElementById('advertenciaBtn').addEventListener('click', () => {
-            const btn = document.getElementById('advertenciaBtn');
-            const idioma = document.getElementById('idiomaSelect').value;
-            const ids = document.getElementById('idsInput').value.split(',').map(s => s.trim()).filter(Boolean).join(', ');
-
-            if (!ids) {
-                alert('Por favor, ingresa o detecta IDs primero.');
-                return;
-            }
-
-            let textoAviso = '';
-
-            if (idioma === 'es') {
-                textoAviso = `Querido jugador,
-
-Nuestros datos del juego nos indican que tienes varias cuentas que no están vinculadas en nuestro sistema. Las reglas del juego requieren la vinculación de dichas cuentas para evitar ser sancionado. Al ser ésta la primera vez, no recibirás ninguna penalización. En próximas ocasiones, si persistes en tener multicuentas sin vincular podrías enfrentarte a un bloqueo temporal o permanente.
-
-Equipo de Gladiatus`;
-            } else if (idioma === 'en') {
-                textoAviso = `Dear player,
-
-Our game data has shown that you have multiple accounts that are not linked in our system. Our game rules require the linking of these accounts. Since this is your first time doing this, you will not face any penalty. If you don't announce the accounts again, you could face either a temporary or permanent ban.
-
-Gladiatus team`;
-            } else if (idioma === 'fr') {
-                textoAviso = `Cher joueur,
-
-Nos données de jeu indiquent que vous possédez plusieurs comptes qui ne sont pas liés dans notre système. Selon les règles du jeu, il est obligatoire de les déclarer.
-
-Puisqu’il s’agit de votre première infraction, aucune sanction ne sera appliquée. Cependant, si vous ne déclarez pas vos comptes à nouveau, vous risquez une suspension temporaire ou définitive.
-
-L’équipe de Gladiatus.`;
-            }
-
-            GM_setClipboard(textoAviso);
-
-            mostrarFeedback(btn);
-            guardarTodosDatos();
-        });
-
-    }
-
-    // Guardar todos los datos actuales en localStorage
-    function guardarTodosDatos() {
-        if (!modal) return;
-        const datos = {
-            ids: document.getElementById('idsInput').value,
-            notaInterna: document.getElementById('infraccionSelect').value,
-            idioma: document.getElementById('idiomaSelect').value,
-            posicion: {
-                top: modal.style.top,
-                left: modal.style.left
-            }
-        };
-        localStorage.setItem(storageKey, JSON.stringify(datos));
-    }
-
-    // Cargar datos guardados
-    function cargarTodosDatos() {
-        if (!modal) return;
-        const datos = JSON.parse(localStorage.getItem(storageKey));
-        if (!datos) return;
-        document.getElementById('idsInput').value = datos.ids || '';
-        document.getElementById('infraccionSelect').value = datos.notaInterna || '1';
-        document.getElementById('idiomaSelect').value = datos.idioma || 'es';
-        if (datos.posicion) {
-            modal.style.top = datos.posicion.top || '100px';
-            modal.style.left = datos.posicion.left || '100px';
-        }
-    }
-
-    // Botón para abrir el modal, insertarlo en el menú (puedes ajustarlo a tu menú)
-    function agregarBotonMenu() {
-        const menu = document.querySelector('#menu ul'); // Cambia selector según menú
-        if (!menu) return;
-
-        const li = document.createElement('li');
-        li.style.cursor = 'pointer';
-        li.textContent = 'Multicuentas';
-        li.style.padding = '5px 10px';
-        li.style.color = 'white';
-        li.style.backgroundColor = '#663399'; // púrpura
-
-        li.addEventListener('click', () => {
-            if (!modal) {
-                crearModal();
-                localStorage.setItem(modalStateKey, 'abierto');
-            } else {
-                // Si ya está abierto, darle foco o animar (opcional)
-                modal.style.display = 'block';
-            }
-        });
-
-        menu.appendChild(li);
-    }
-
-    // Al cargar, agregar botón
-    window.addEventListener('load', () => {
-        agregarBotonMenu();
-
-        // Si el modal estaba abierto antes y no fue cerrado, reabrirlo
-        const estadoModal = localStorage.getItem(modalStateKey);
-        if (estadoModal === 'abierto') {
-            crearModal();
-        }
+  if (!addAnalizarButton()) {
+    const observer = new MutationObserver(() => {
+      if (addAnalizarButton()) observer.disconnect();
     });
-
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 })();
 
-    //////////////////////////////////////////////////////////////////// FIN MULTICUENTAS
-})();
